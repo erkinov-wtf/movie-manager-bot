@@ -8,4 +8,5 @@ import (
 func SetupBotRoutes(bot *telebot.Bot, container *dependencyInjection.Container) {
 	bot.Handle("/hello", container.BotHandler.Hello)
 	bot.Handle("/search", container.BotHandler.Search)
+	bot.Handle(telebot.OnCallback, container.BotHandler.OnCallback)
 }
