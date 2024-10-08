@@ -53,13 +53,13 @@ func (*botHandler) Search(context telebot.Context) error {
 		return err
 	}
 
-	movie, err := search.SearchMovie(context.Message().Payload)
+	movieData, err := search.SearchMovie(context.Message().Payload)
 	if err != nil {
 		log.Print(err)
 		return err
 	}
 
-	if movie.TotalResults == 0 {
+	if movieData.TotalResults == 0 {
 		log.Print("no movies found")
 		_, err = context.Bot().Edit(msg, fmt.Sprintf("no movies found for search *%s*", context.Message().Payload), telebot.ModeMarkdown)
 		if err != nil {
@@ -71,11 +71,11 @@ func (*botHandler) Search(context telebot.Context) error {
 
 	moviesCache.Clear()
 
-	for i, result := range movie.Results {
+	for i, result := range movieData.Results {
 		moviesCache.Set(i+1, result)
 	}
 
-	movieCount = len(movie.Results)
+	movieCount = len(movieData.Results)
 	maxPage = movieCount / 3
 	currentPage := 1
 	pagePointer = &currentPage
@@ -107,6 +107,30 @@ func (*botHandler) OnCallback(context telebot.Context) error {
 	log.Printf("Received callback: unique=%s, data=%s", unique, data)
 
 	switch unique {
+	case "back_to_pagination":
+		log.Print("returning to paginated results")
+
+		err := context.Delete()
+		if err != nil {
+			log.Printf("Failed to delete movie details message: %v", err)
+		}
+
+		paginatedMovies := helpers.PaginateMovies(moviesCache, *pagePointer, movieCount)
+		response, btn := helpers.GenerateMovieResponse(paginatedMovies, *pagePointer, maxPage, movieCount)
+		_, err = context.Bot().Send(context.Chat(), response, btn, telebot.ModeMarkdown)
+		if err != nil {
+			log.Print(err)
+			return err
+		}
+
+		err = context.Respond(&telebot.CallbackResponse{Text: "Returning to list"})
+		if err != nil {
+			log.Print(err)
+			return err
+		}
+
+		return nil
+
 	case "movie":
 		log.Printf("movie with id %s", data)
 		parsedId, err := strconv.Atoi(data)
@@ -150,7 +174,7 @@ func (*botHandler) OnCallback(context telebot.Context) error {
 	case "prev":
 		log.Print("previous pagination result")
 		*pagePointer--
-		if *pagePointer < 1 {
+		if (*pagePointer) < 1 {
 			*pagePointer = 1
 		}
 
@@ -160,6 +184,7 @@ func (*botHandler) OnCallback(context telebot.Context) error {
 			log.Print(err)
 			return err
 		}
+
 	default:
 		err := context.Respond(&telebot.CallbackResponse{Text: "Unknown action"})
 		if err != nil {

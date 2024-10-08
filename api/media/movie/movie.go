@@ -63,12 +63,22 @@ func ShowMovie(context telebot.Context, movieData *Movie) error {
 		movieData.Status,
 	)
 
+	backBtn := &telebot.ReplyMarkup{}
+	backBtn.Inline(
+		backBtn.Row(backBtn.Data("🔙 Back to list", "back_to_pagination|")),
+	)
+
+	err = context.Delete()
+	if err != nil {
+		log.Printf("Failed to delete original message: %v", err)
+	}
+
 	imageFile := &telebot.Photo{
 		File:    telebot.File{FileReader: bytes.NewReader(imgBuffer.Bytes())},
 		Caption: caption,
 	}
 
-	_, err = context.Bot().Send(context.Chat(), imageFile, telebot.ModeMarkdown)
+	_, err = context.Bot().Send(context.Chat(), imageFile, backBtn, telebot.ModeMarkdown)
 	if err != nil {
 		log.Printf("Failed to send movie details: %v", err)
 		return fmt.Errorf("could not send movie details: %w", err)
