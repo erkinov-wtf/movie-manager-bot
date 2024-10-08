@@ -1,8 +1,11 @@
 package helpers
 
-import "movie-manager-bot/api/media/movie"
+import (
+	"movie-manager-bot/api/media/movie"
+	"movie-manager-bot/storage"
+)
 
-func PaginateMovies(movies map[int]movie.Movie, page, movieCount int) []movie.Movie {
+func PaginateMovies(moviesCache *storage.Cache, page, movieCount int) []movie.Movie {
 	const itemsPerPage = 3
 
 	start := (page - 1) * itemsPerPage
@@ -14,7 +17,7 @@ func PaginateMovies(movies map[int]movie.Movie, page, movieCount int) []movie.Mo
 
 	var paginatedMovies []movie.Movie
 	for i := start; i < end; i++ {
-		if mov, exists := movies[i]; exists {
+		if mov, exists := moviesCache.Get(i + 1); exists {
 			paginatedMovies = append(paginatedMovies, mov)
 		}
 	}

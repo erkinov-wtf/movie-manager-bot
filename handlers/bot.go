@@ -5,15 +5,17 @@ import (
 	"gopkg.in/telebot.v3"
 	"log"
 	"movie-manager-bot/api/auth"
-	movieType "movie-manager-bot/api/media/movie"
 	"movie-manager-bot/api/media/search"
 	"movie-manager-bot/helpers"
+	"movie-manager-bot/storage"
 	"strings"
 )
 
-var moviesCache = map[int]movieType.Movie{}
-var pagePointer *int
-var maxPage, movieCount int
+var (
+	moviesCache         = storage.NewCache()
+	pagePointer         *int
+	maxPage, movieCount int
+)
 
 func (*botHandler) Hello(context telebot.Context) error {
 	log.Print("/hello command received")
@@ -65,51 +67,19 @@ func (*botHandler) Search(context telebot.Context) error {
 		return nil
 	}
 
+	moviesCache.Clear()
+
 	for i, result := range movie.Results {
-		moviesCache[i+1] = result
+		moviesCache.Set(i+1, result)
 	}
 
 	movieCount = len(movie.Results)
-
-	paginatedMovies := helpers.PaginateMovies(moviesCache, 1, movieCount)
-	var response string
-	for _, mov := range paginatedMovies {
-		response += fmt.Sprintf(
-			"*Title*: %v\n"+
-				"*Overview*: %v\n"+
-				"*Release* Date: %s\n"+
-				"*Runtime*: %v\n"+
-				"*Is Adult*: %v\n"+
-				"*Popularity*: %v\n\n",
-			mov.Title,
-			mov.Overview,
-			mov.ReleaseDate,
-			mov.Runtime,
-			mov.Adult,
-			mov.Popularity,
-		)
-	}
-
 	maxPage = movieCount / 3
 	currentPage := 1
 	pagePointer = &currentPage
 
-	btn := &telebot.ReplyMarkup{}
-	btnRow := telebot.Row{}
-
-	for i, mov := range paginatedMovies {
-		btnRow = append(btnRow, btn.Data(fmt.Sprintf("%d️⃣", i+1), "", fmt.Sprintf("movie|%v", mov.ID)))
-	}
-
-	btn.Inline(
-		btnRow,
-		btn.Row(
-			btn.Data("⏮️ Prev", "", "prev|"),
-			btn.Text(fmt.Sprintf("%v | %v | %v", currentPage, maxPage, movieCount)),
-			btn.Data("Next ⏭️", "", "next|"),
-		),
-	)
-
+	paginatedMovies := helpers.PaginateMovies(moviesCache, 1, movieCount)
+	response, btn := helpers.GenerateMovieResponse(paginatedMovies, currentPage, maxPage, movieCount)
 	_, err = context.Bot().Edit(msg, response, btn, telebot.ModeMarkdown)
 	if err != nil {
 		log.Print(err)
@@ -142,6 +112,7 @@ func (*botHandler) OnCallback(context telebot.Context) error {
 			log.Print(err)
 			return err
 		}
+
 	case "next":
 		log.Print("next pagination result")
 		*pagePointer++
@@ -155,6 +126,7 @@ func (*botHandler) OnCallback(context telebot.Context) error {
 			log.Print(err)
 			return err
 		}
+
 	case "prev":
 		log.Print("previous pagination result")
 		*pagePointer--
@@ -177,43 +149,4 @@ func (*botHandler) OnCallback(context telebot.Context) error {
 	}
 
 	return nil
-}
-
-func updateMovieMessage(context telebot.Context, paginatedMovies []movieType.Movie, currentPage, maxPage int) error {
-	var response string
-	for _, mov := range paginatedMovies {
-		response += fmt.Sprintf(
-			"*Title*: %v\n"+
-				"*Overview*: %v\n"+
-				"*Release* Date: %s\n"+
-				"*Runtime*: %v\n"+
-				"*Is Adult*: %v\n"+
-				"*Popularity*: %v\n\n",
-			mov.Title,
-			mov.Overview,
-			mov.ReleaseDate,
-			mov.Runtime,
-			mov.Adult,
-			mov.Popularity,
-		)
-	}
-
-	btn := &telebot.ReplyMarkup{}
-	btnRow := telebot.Row{}
-
-	for i, mov := range paginatedMovies {
-		btnRow = append(btnRow, btn.Data(fmt.Sprintf("%d️⃣", i+1), "", fmt.Sprintf("movie|%v", mov.ID)))
-	}
-
-	btn.Inline(
-		btnRow,
-		btn.Row(
-			btn.Data("⏮️ Prev", "", "prev|"),
-			btn.Text(fmt.Sprintf("%v | %v | %v", currentPage, maxPage, movieCount)),
-			btn.Data("Next ⏭️", "", "next|"),
-		),
-	)
-
-	_, err := context.Bot().Edit(context.Message(), response, btn, telebot.ModeMarkdown)
-	return err
 }
