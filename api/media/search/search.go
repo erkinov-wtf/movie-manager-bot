@@ -6,7 +6,7 @@ import (
 	"io"
 	"movie-manager-bot/api"
 	"movie-manager-bot/config"
-	"movie-manager-bot/helpers"
+	"movie-manager-bot/helpers/utils"
 	"net/http"
 )
 
@@ -15,7 +15,7 @@ func SearchMovie(movieTitle string) (*MovieSearch, error) {
 		"include_adult": "true",
 		"query":         movieTitle,
 	}
-	url := helpers.MakeUrl(config.Cfg.Endpoints.SearchMovie, params)
+	url := utils.MakeUrl(config.Cfg.Endpoints.SearchMovie, params)
 
 	resp, err := api.Client.HttpClient.Get(url)
 	if err != nil {

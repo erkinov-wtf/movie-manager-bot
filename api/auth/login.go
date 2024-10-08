@@ -6,12 +6,12 @@ import (
 	"log"
 	"movie-manager-bot/api"
 	"movie-manager-bot/config"
-	"movie-manager-bot/helpers"
+	"movie-manager-bot/helpers/utils"
 	"net/http"
 )
 
 func Login() error {
-	url := helpers.MakeUrl(config.Cfg.Endpoints.Login, nil)
+	url := utils.MakeUrl(config.Cfg.Endpoints.Login, nil)
 
 	resp, err := api.Client.HttpClient.Get(url)
 	if err != nil {

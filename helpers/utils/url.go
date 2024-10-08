@@ -1,4 +1,4 @@
-package helpers
+package utils
 
 import (
 	"log"
@@ -25,6 +25,6 @@ func MakeUrl(endpoint string, queryParams map[string]string) string {
 	base.RawQuery = params.Encode()
 
 	finalUrl := base.String()
-	log.Printf("Making request: %s", finalUrl)
+	log.Printf("making request: %s", finalUrl)
 	return finalUrl
 }

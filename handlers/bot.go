@@ -5,9 +5,11 @@ import (
 	"gopkg.in/telebot.v3"
 	"log"
 	"movie-manager-bot/api/auth"
+	"movie-manager-bot/api/media/movie"
 	"movie-manager-bot/api/media/search"
 	"movie-manager-bot/helpers"
 	"movie-manager-bot/storage"
+	"strconv"
 	"strings"
 )
 
@@ -107,7 +109,25 @@ func (*botHandler) OnCallback(context telebot.Context) error {
 	switch unique {
 	case "movie":
 		log.Printf("movie with id %s", data)
-		err := context.Respond(&telebot.CallbackResponse{Text: "You found the movie"})
+		parsedId, err := strconv.Atoi(data)
+		if err != nil {
+			log.Print(err)
+			return err
+		}
+
+		movieData, err := movie.GetMovie(parsedId)
+		if err != nil {
+			log.Print(err)
+			return err
+		}
+
+		err = movie.ShowMovie(context, movieData)
+		if err != nil {
+			log.Print(err)
+			return err
+		}
+
+		err = context.Respond(&telebot.CallbackResponse{Text: "You found the movie!"})
 		if err != nil {
 			log.Print(err)
 			return err

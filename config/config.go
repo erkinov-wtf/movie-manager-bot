@@ -31,7 +31,7 @@ type Endpoints struct {
 	BaseUrl         string
 	ImageUrl        string
 	SearchMovie     string
-	BulkShowUsers   string
+	GetMovie        string
 	Groups          string
 	GroupData       string
 	Discounts       string
@@ -51,6 +51,7 @@ func MustLoad() {
 			ImageUrl:    getEnv("IMAGE_URL"),
 			Login:       getEnv("LOGIN"),
 			SearchMovie: getEnv("SEARCH_MOVIE"),
+			GetMovie:    getEnv("GET_MOVIE"),
 		},
 	}
 
