@@ -1,6 +1,6 @@
 services:
   app:
-    build: .
+    image: movie-manager-bot-app:latest
     env_file:
       - .env
     container_name: movie-manager-bot
