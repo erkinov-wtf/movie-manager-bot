@@ -41,7 +41,7 @@ jobs:
 
       - name: Copy Docker Image to Remote Server
         run: |
-          scp ${{ secrets.CONTAINER_NAME }}.tar.gz $SSH_USER@$SSH_HOST:${{ secrets.LOCATION }}
+          scp ${{ secrets.CONTAINER_NAME }}.tar.gz $SSH_USER@$SSH_HOST:${{ secrets.LOCATION }}/images
 
         env:
           SSH_USER: ${{ secrets.SSH_USER }}
@@ -50,11 +50,10 @@ jobs:
       - name: Load Docker Image on Remote Server and Deploy
         run: |
           ssh $SSH_USER@$SSH_HOST "
-          docker load -i ${{ secrets.LOCATION }}/${{ secrets.CONTAINER_NAME }}.tar.gz &&
+          docker load -i ${{ secrets.LOCATION }}/images/${{ secrets.CONTAINER_NAME }}.tar.gz &&
           docker stop ${{ secrets.CONTAINER_NAME }} || true &&
           docker rm ${{ secrets.CONTAINER_NAME }} || true &&
-          cd ${{ secrets.LOCATION }} && docker compose up -d" &&
-          sudo rm -rf ${{ secrets.CONTAINER_NAME }}.tar.gz
+          cd ${{ secrets.LOCATION }} && docker compose up -d"
 
         env:
           SSH_USER: ${{ secrets.SSH_USER }}
