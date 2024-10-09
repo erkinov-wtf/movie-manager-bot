@@ -53,7 +53,7 @@ jobs:
           docker load -i ${{ secrets.LOCATION }}/${{ secrets.CONTAINER_NAME }}.tar.gz &&
           docker stop ${{ secrets.CONTAINER_NAME }} || true &&
           docker rm ${{ secrets.CONTAINER_NAME }} || true &&
-          cd ${{ secrets.LOCATION }} && docker compose up -d"
+          cd ${{ secrets.LOCATION }} && docker compose up -d" || true &&
           sudo rm -rf ${{ secrets.CONTAINER_NAME }}.tar.gz
 
         env:
