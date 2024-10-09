@@ -29,8 +29,6 @@ RUN apt-get update && apt-get install -y ca-certificates && update-ca-certificat
 # Copy the built binary from the builder stage
 COPY --from=builder /app/main /app/main
 
-# Copy the .env file to the working directory (optional if needed in the container)
-COPY .env /app/.env
 
 # Make the binary executable
 RUN chmod +x /app/main
