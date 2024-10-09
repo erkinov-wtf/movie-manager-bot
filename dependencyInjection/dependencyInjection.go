@@ -1,7 +1,7 @@
 package dependencyInjection
 
 import (
-	"movie-manager-bot/handlers"
+	"movie-manager-bot/handlers/movie"
 	"movie-manager-bot/interfaces"
 )
 
@@ -11,6 +11,6 @@ type Container struct {
 
 func NewContainer() *Container {
 	return &Container{
-		BotHandler: handlers.NewBotHandler(),
+		BotHandler: movie.NewBotHandler(),
 	}
 }
