@@ -65,7 +65,7 @@ func ShowMovie(context telebot.Context, movieData *Movie) error {
 
 	backBtn := &telebot.ReplyMarkup{}
 	backBtn.Inline(
-		backBtn.Row(backBtn.Data("🔙 Back to list", "back_to_pagination|")),
+		backBtn.Row(backBtn.Data("🔙 Back to list", "movie|back_to_pagination|")),
 	)
 
 	err = context.Delete()

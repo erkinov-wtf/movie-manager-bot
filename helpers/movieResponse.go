@@ -29,15 +29,15 @@ func GenerateMovieResponse(paginatedMovies []movieType.Movie, currentPage, maxPa
 	btnRow := telebot.Row{}
 
 	for i, mov := range paginatedMovies {
-		btnRow = append(btnRow, btn.Data(fmt.Sprintf("%d️⃣", i+1), "", fmt.Sprintf("movie|%v", mov.ID)))
+		btnRow = append(btnRow, btn.Data(fmt.Sprintf("%d️⃣", i+1), "", fmt.Sprintf("movie|movie|%v", mov.ID)))
 	}
 
 	btn.Inline(
 		btnRow,
 		btn.Row(
-			btn.Data("⏮️ Prev", "", "prev|"),
+			btn.Data("⏮️ Prev", "", "movie|prev|"),
 			btn.Text(fmt.Sprintf("%v | %v | %v", currentPage, maxPage, movieCount)),
-			btn.Data("Next ⏭️", "", "next|"),
+			btn.Data("Next ⏭️", "", "movie|next|"),
 		),
 	)
 

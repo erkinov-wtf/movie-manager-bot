@@ -28,7 +28,9 @@ func main() {
 
 	container := dependencyInjection.NewContainer()
 
-	commands.SetupBotRoutes(bot, container)
+	commands.SetupDefaultRoutes(bot, container)
+	commands.SetupMovieRoutes(bot, container)
+	commands.SetupTVRoutes(bot, container)
 
 	log.Print("starting bot...")
 	bot.Start()

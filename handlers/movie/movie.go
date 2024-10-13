@@ -19,17 +19,7 @@ var (
 	maxPage, movieCount int
 )
 
-func (*botHandler) Hello(context telebot.Context) error {
-	log.Print("/hello command received")
-	err := context.Send("Hello mathafuck")
-	if err != nil {
-		log.Print(err)
-		return err
-	}
-	return nil
-}
-
-func (*botHandler) Search(context telebot.Context) error {
+func (*movieHandler) SearchMovie(context telebot.Context) error {
 	log.Print("/search command received")
 
 	if context.Message().Payload == "" {
@@ -91,106 +81,114 @@ func (*botHandler) Search(context telebot.Context) error {
 	return nil
 }
 
-func (*botHandler) OnCallback(context telebot.Context) error {
+func (h *movieHandler) MovieCallback(context telebot.Context) error {
 	callback := context.Callback()
 	trimmed := strings.TrimSpace(callback.Data)
 
+	if !strings.HasPrefix(trimmed, "movie|") {
+		return nil
+	}
+
 	dataParts := strings.Split(trimmed, "|")
-	if len(dataParts) != 2 {
+	if len(dataParts) != 3 {
 		log.Printf("Received malformed callback data: %s", callback.Data)
 		return context.Respond(&telebot.CallbackResponse{Text: "Malformed data received"})
 	}
 
-	unique := dataParts[0]
-	data := dataParts[1]
+	action := dataParts[1]
+	data := dataParts[2]
 
-	log.Printf("Received callback: unique=%s, data=%s", unique, data)
-
-	switch unique {
-	case "back_to_pagination":
-		log.Print("returning to paginated results")
-
-		err := context.Delete()
-		if err != nil {
-			log.Printf("Failed to delete movie details message: %v", err)
-		}
-
-		paginatedMovies := helpers.PaginateMovies(moviesCache, *pagePointer, movieCount)
-		response, btn := helpers.GenerateMovieResponse(paginatedMovies, *pagePointer, maxPage, movieCount)
-		_, err = context.Bot().Send(context.Chat(), response, btn, telebot.ModeMarkdown)
-		if err != nil {
-			log.Print(err)
-			return err
-		}
-
-		err = context.Respond(&telebot.CallbackResponse{Text: "Returning to list"})
-		if err != nil {
-			log.Print(err)
-			return err
-		}
-
-		return nil
-
+	switch action {
 	case "movie":
-		log.Printf("movie with id %s", data)
-		parsedId, err := strconv.Atoi(data)
-		if err != nil {
-			log.Print(err)
-			return err
-		}
+		return h.handleMovieDetails(context, data)
 
-		movieData, err := movie.GetMovie(parsedId)
-		if err != nil {
-			log.Print(err)
-			return err
-		}
-
-		err = movie.ShowMovie(context, movieData)
-		if err != nil {
-			log.Print(err)
-			return err
-		}
-
-		err = context.Respond(&telebot.CallbackResponse{Text: "You found the movie!"})
-		if err != nil {
-			log.Print(err)
-			return err
-		}
+	case "back_to_pagination":
+		return h.handleBackToPagination(context)
 
 	case "next":
-		log.Print("next pagination result")
-		*pagePointer++
-		if *pagePointer > maxPage {
-			*pagePointer = maxPage
-		}
-
-		paginatedMovies := helpers.PaginateMovies(moviesCache, *pagePointer, movieCount)
-		err := updateMovieMessage(context, paginatedMovies, *pagePointer, maxPage)
-		if err != nil {
-			log.Print(err)
-			return err
-		}
+		return h.handleNextPage(context)
 
 	case "prev":
-		log.Print("previous pagination result")
-		*pagePointer--
-		if (*pagePointer) < 1 {
-			*pagePointer = 1
-		}
-
-		paginatedMovies := helpers.PaginateMovies(moviesCache, *pagePointer, movieCount)
-		err := updateMovieMessage(context, paginatedMovies, *pagePointer, maxPage)
-		if err != nil {
-			log.Print(err)
-			return err
-		}
+		return h.handlePrevPage(context)
 
 	default:
-		err := context.Respond(&telebot.CallbackResponse{Text: "Unknown action"})
-		if err != nil {
-			log.Print(err)
-			return err
-		}
+		return context.Respond(&telebot.CallbackResponse{Text: "Unknown action"})
+	}
+}
+
+func (h *movieHandler) handleMovieDetails(context telebot.Context, data string) error {
+	parsedId, err := strconv.Atoi(data)
+	if err != nil {
+		log.Print(err)
+		return err
+	}
+
+	movieData, err := movie.GetMovie(parsedId)
+	if err != nil {
+		log.Print(err)
+		return err
+	}
+
+	err = movie.ShowMovie(context, movieData)
+	if err != nil {
+		log.Print(err)
+		return err
+	}
+
+	return context.Respond(&telebot.CallbackResponse{Text: "You found the movie!"})
+}
+
+func (h *movieHandler) handleBackToPagination(context telebot.Context) error {
+	log.Print("returning to paginated results")
+
+	err := context.Delete()
+	if err != nil {
+		log.Printf("Failed to delete movie details message: %v", err)
+	}
+
+	paginatedMovies := helpers.PaginateMovies(moviesCache, *pagePointer, movieCount)
+	response, btn := helpers.GenerateMovieResponse(paginatedMovies, *pagePointer, maxPage, movieCount)
+	_, err = context.Bot().Send(context.Chat(), response, btn, telebot.ModeMarkdown)
+	if err != nil {
+		log.Print(err)
+		return err
+	}
+
+	err = context.Respond(&telebot.CallbackResponse{Text: "Returning to list"})
+	if err != nil {
+		log.Print(err)
+		return err
+	}
+
+	return nil
+}
+
+func (h *movieHandler) handleNextPage(context telebot.Context) error {
+	*pagePointer++
+	if *pagePointer > maxPage {
+		*pagePointer = maxPage
+	}
+
+	paginatedMovies := helpers.PaginateMovies(moviesCache, *pagePointer, movieCount)
+	return updateMovieMessage(context, paginatedMovies, *pagePointer, maxPage)
+}
+
+func (h *movieHandler) handlePrevPage(context telebot.Context) error {
+	*pagePointer--
+	if (*pagePointer) < 1 {
+		*pagePointer = 1
+	}
+
+	paginatedMovies := helpers.PaginateMovies(moviesCache, *pagePointer, movieCount)
+	return updateMovieMessage(context, paginatedMovies, *pagePointer, maxPage)
+}
+
+func updateMovieMessage(context telebot.Context, paginatedMovies []movie.Movie, currentPage, maxPage int) error {
+	response, btn := helpers.GenerateMovieResponse(paginatedMovies, currentPage, maxPage, movieCount)
+	_, err := context.Bot().Edit(context.Message(), response, btn, telebot.ModeMarkdown)
+	if err != nil {
+		log.Printf("Failed to update movie message: %v", err)
+		return err
 	}
 
 	return nil

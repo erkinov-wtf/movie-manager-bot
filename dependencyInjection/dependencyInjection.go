@@ -2,15 +2,18 @@ package dependencyInjection
 
 import (
 	"movie-manager-bot/handlers/movie"
+	"movie-manager-bot/handlers/tv"
 	"movie-manager-bot/interfaces"
 )
 
 type Container struct {
-	BotHandler interfaces.BotInterface
+	MovieHandler interfaces.MovieInterface
+	TVHandler    interfaces.TVInterface
 }
 
 func NewContainer() *Container {
 	return &Container{
-		BotHandler: movie.NewBotHandler(),
+		MovieHandler: movie.NewMovieHandler(),
+		TVHandler:    tv.NewTVHandler(),
 	}
 }
