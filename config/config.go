@@ -31,7 +31,9 @@ type Endpoints struct {
 	BaseUrl         string
 	ImageUrl        string
 	SearchMovie     string
+	SearchTv        string
 	GetMovie        string
+	GetTv           string
 	Groups          string
 	GroupData       string
 	Discounts       string
@@ -52,6 +54,8 @@ func MustLoad() {
 			Login:       getEnv("LOGIN"),
 			SearchMovie: getEnv("SEARCH_MOVIE"),
 			GetMovie:    getEnv("GET_MOVIE"),
+			SearchTv:    getEnv("SEARCH_TV"),
+			GetTv:       getEnv("GET_TV"),
 		},
 	}
 

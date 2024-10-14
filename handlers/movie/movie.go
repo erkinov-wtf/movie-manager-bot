@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"gopkg.in/telebot.v3"
 	"log"
-	"movie-manager-bot/api/auth"
 	"movie-manager-bot/api/media/movie"
 	"movie-manager-bot/api/media/search"
 	"movie-manager-bot/helpers"
@@ -32,12 +31,6 @@ func (*movieHandler) SearchMovie(context telebot.Context) error {
 	}
 
 	msg, err := context.Bot().Send(context.Chat(), fmt.Sprintf("looking for *%v*...", context.Message().Payload), telebot.ModeMarkdown)
-	if err != nil {
-		log.Print(err)
-		return err
-	}
-
-	err = auth.Login()
 	if err != nil {
 		log.Print(err)
 		return err
@@ -101,16 +94,12 @@ func (h *movieHandler) MovieCallback(context telebot.Context) error {
 	switch action {
 	case "movie":
 		return h.handleMovieDetails(context, data)
-
 	case "back_to_pagination":
 		return h.handleBackToPagination(context)
-
 	case "next":
 		return h.handleNextPage(context)
-
 	case "prev":
 		return h.handlePrevPage(context)
-
 	default:
 		return context.Respond(&telebot.CallbackResponse{Text: "Unknown action"})
 	}

@@ -36,3 +36,30 @@ func SearchMovie(movieTitle string) (*MovieSearch, error) {
 
 	return &result, nil
 }
+
+func SearchTV(tvTitle string) (*TVSearch, error) {
+	params := map[string]string{
+		"include_adult": "true",
+		"query":         tvTitle,
+	}
+	url := utils.MakeUrl(config.Cfg.Endpoints.SearchTv, params)
+
+	resp, err := api.Client.HttpClient.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching tv data: %w", err)
+	}
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("received non-200 response: %d", resp.StatusCode)
+	}
+
+	var result TVSearch
+	if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("error parsing json response: %w", err)
+	}
+
+	return &result, nil
+}

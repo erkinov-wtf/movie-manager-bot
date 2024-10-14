@@ -1,12 +1,11 @@
 package storage
 
 import (
-	movieType "movie-manager-bot/api/media/movie"
 	"sync"
 )
 
 type CacheItem struct {
-	Movie movieType.Movie
+	Value interface{}
 }
 
 type Cache struct {
@@ -20,24 +19,24 @@ func NewCache() *Cache {
 	}
 }
 
-func (c *Cache) Set(key int, movie movieType.Movie) {
+func (c *Cache) Set(key int, value interface{}) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.items[key] = CacheItem{
-		Movie: movie,
+		Value: value,
 	}
 }
 
-func (c *Cache) Get(key int) (movieType.Movie, bool) {
+func (c *Cache) Get(key int) (interface{}, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
 	item, found := c.items[key]
 	if !found {
-		return movieType.Movie{}, false
+		return nil, false
 	}
 
-	return item.Movie, true
+	return item.Value, true
 }
 
 func (c *Cache) Clear() {
