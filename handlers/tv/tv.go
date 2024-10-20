@@ -8,6 +8,7 @@ import (
 	"movie-manager-bot/api/media/tv"
 	"movie-manager-bot/helpers"
 	"movie-manager-bot/storage"
+	"movie-manager-bot/storage/firebase"
 	"strconv"
 	"strings"
 )
@@ -212,7 +213,17 @@ func (h *tvHandler) handleWatched(ctx telebot.Context, data string) error {
 		}
 	}
 
-	_, err = ctx.Bot().Send(ctx.Chat(), fmt.Sprintf("Seasons: %v\nEpisodes: %v\nRuntime: %v", seasonNum, episodes, runtime), telebot.ModeMarkdown)
+	newTv := firebase.TVShow{
+		ID:       strconv.FormatInt(selectedTvShow.ID, 10),
+		Name:     selectedTvShow.Name,
+		Seasons:  seasonNum,
+		Episodes: int(episodes),
+		Runtime:  int(runtime),
+	}
+
+	firebase.CreateTvShow(&newTv)
+
+	_, err = ctx.Bot().Send(ctx.Chat(), fmt.Sprintf("The TV Show added as watched with below data:\nSeasons: %v\nEpisodes: %v\nRuntime: %v", seasonNum, episodes, runtime), telebot.ModeMarkdown)
 	if err != nil {
 		log.Print(err)
 		return err

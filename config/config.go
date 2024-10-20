@@ -9,7 +9,7 @@ var Cfg Config
 
 type Config struct {
 	General   General
-	Database  Database
+	Firebase  Firebase
 	Endpoints Endpoints
 }
 
@@ -18,12 +18,10 @@ type General struct {
 	ApiKey   string
 }
 
-type Database struct {
-	Host     string
-	Port     string
-	Name     string
-	User     string
-	Password string
+type Firebase struct {
+	FirebaseCredentials       string
+	FirebaseMoviesCollection  string
+	FirebaseTvShowsCollection string
 }
 
 type Endpoints struct {
@@ -47,7 +45,10 @@ func MustLoad() {
 			BotToken: getEnv("BOT_TOKEN"),
 			ApiKey:   getEnv("API_KEY"),
 		},
-		Database: Database{},
+		Firebase: Firebase{
+			FirebaseMoviesCollection:  getEnv("FIREBASE_MOVIES_COLLECTION"),
+			FirebaseTvShowsCollection: getEnv("FIREBASE_TVSHOWS_COLLECTION"),
+		},
 		Endpoints: Endpoints{
 			BaseUrl:     getEnv("BASE_URL"),
 			ImageUrl:    getEnv("IMAGE_URL"),
