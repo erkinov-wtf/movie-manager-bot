@@ -16,6 +16,7 @@ var (
 	tvCache          = storage.NewCache()
 	pagePointer      *int
 	maxPage, tvCount int
+	selectedTvShow   *tv.TV
 )
 
 func (*tvHandler) SearchTV(context telebot.Context) error {
@@ -95,6 +96,12 @@ func (h *tvHandler) TVCallback(context telebot.Context) error {
 	case "tv":
 		return h.handleTVDetails(context, data)
 
+	case "select_seasons":
+		return h.handleSelectSeasons(context, data)
+
+	case "watched":
+		return h.handleWatched(context, data)
+
 	case "back_to_pagination":
 		return h.handleBackToPagination(context)
 
@@ -148,6 +155,64 @@ func (h *tvHandler) handleBackToPagination(context telebot.Context) error {
 	}
 
 	err = context.Respond(&telebot.CallbackResponse{Text: "Returning to list"})
+	if err != nil {
+		log.Print(err)
+		return err
+	}
+
+	return nil
+}
+
+func (h *tvHandler) handleSelectSeasons(context telebot.Context, tvId string) error {
+	TVId, _ := strconv.Atoi(tvId)
+	var err error
+	selectedTvShow, err = tv.GetTV(TVId)
+	if err != nil {
+		log.Print(err.Error())
+		return err
+	}
+
+	btn := &telebot.ReplyMarkup{}
+	var btnRows []telebot.Row
+
+	for i := 1; i <= int(selectedTvShow.Seasons); i++ {
+		btnRows = append(btnRows, btn.Row(btn.Data(fmt.Sprintf("Season %d️⃣", i), "", fmt.Sprintf("tv|watched|%v", i))))
+	}
+
+	btn.Inline(btnRows...)
+
+	_, err = context.Bot().Send(context.Chat(), "How many seasons have you watched?", btn)
+	if err != nil {
+		log.Print(err)
+		return err
+	}
+
+	return nil
+}
+
+func (h *tvHandler) handleWatched(ctx telebot.Context, data string) error {
+	seasonNum, err := strconv.Atoi(data)
+	if err != nil {
+		log.Print(err)
+		return ctx.Send("Invalid season number.")
+	}
+
+	var episodes, runtime int64
+	for i := 1; i <= seasonNum; i++ {
+		tvSeason, err := tv.GetSeason(int(selectedTvShow.ID), i)
+		if err != nil {
+			log.Print(err.Error())
+			return err
+		}
+
+		for _, episode := range tvSeason.Episodes {
+			episodes++
+			runtime += episode.Runtime
+			log.Print(episode.Runtime)
+		}
+	}
+
+	_, err = ctx.Bot().Send(ctx.Chat(), fmt.Sprintf("Seasons: %v\nEpisodes: %v\nRuntime: %v", seasonNum, episodes, runtime), telebot.ModeMarkdown)
 	if err != nil {
 		log.Print(err)
 		return err

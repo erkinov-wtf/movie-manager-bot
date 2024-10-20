@@ -31,7 +31,7 @@ func GenerateTVResponse(paginatedTV []tv.TV, currentPage, maxPage, tvCount int) 
 	btnRow := telebot.Row{}
 
 	for i, mov := range paginatedTV {
-		btnRow = append(btnRow, btn.Data(fmt.Sprintf("%d️⃣", i+1), "", fmt.Sprintf("tv|tv|%v", mov.Id)))
+		btnRow = append(btnRow, btn.Data(fmt.Sprintf("%d️⃣", i+1), "", fmt.Sprintf("tv|tv|%v", mov.ID)))
 	}
 
 	btn.Inline(

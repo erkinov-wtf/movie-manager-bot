@@ -37,6 +37,29 @@ func GetTV(tvId int) (*TV, error) {
 	return &result, nil
 }
 
+func GetSeason(tvId, seasonNumber int) (*Season, error) {
+	url := utils.MakeUrl(fmt.Sprintf("%s/%v/season/%v", config.Cfg.Endpoints.GetTv, tvId, seasonNumber), nil)
+
+	resp, err := api.Client.HttpClient.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching tv data: %w", err)
+	}
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("received non-200 response: %d", resp.StatusCode)
+	}
+
+	var result Season
+	if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("error parsing json response: %w", err)
+	}
+
+	return &result, nil
+}
+
 func ShowTV(context telebot.Context, tvData *TV) error {
 	imgBuffer, err := image.GetImage(tvData.PosterPath)
 	if err != nil {
@@ -64,6 +87,7 @@ func ShowTV(context telebot.Context, tvData *TV) error {
 	backBtn := &telebot.ReplyMarkup{}
 	backBtn.Inline(
 		backBtn.Row(backBtn.Data("🔙 Back to list", "tv|back_to_pagination|")),
+		backBtn.Row(backBtn.Data("📋 Watchlist", "tv|watchlist|"), backBtn.Data("✅ Watched", fmt.Sprintf("tv|select_seasons|%v", tvData.ID))),
 	)
 
 	err = context.Delete()
@@ -82,6 +106,6 @@ func ShowTV(context telebot.Context, tvData *TV) error {
 		return fmt.Errorf("could not send tv details: %w", err)
 	}
 
-	log.Printf("Tv details successfully sent for tv ID: %d", tvData.Id)
+	log.Printf("Tv details successfully sent for tv ID: %d", tvData.ID)
 	return nil
 }
