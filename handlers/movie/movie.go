@@ -8,8 +8,10 @@ import (
 	"movie-manager-bot/api/media/search"
 	"movie-manager-bot/helpers"
 	"movie-manager-bot/storage"
+	"movie-manager-bot/storage/firebase"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var (
@@ -74,37 +76,6 @@ func (*movieHandler) SearchMovie(context telebot.Context) error {
 	return nil
 }
 
-func (h *movieHandler) MovieCallback(context telebot.Context) error {
-	callback := context.Callback()
-	trimmed := strings.TrimSpace(callback.Data)
-
-	if !strings.HasPrefix(trimmed, "movie|") {
-		return nil
-	}
-
-	dataParts := strings.Split(trimmed, "|")
-	if len(dataParts) != 3 {
-		log.Printf("Received malformed callback data: %s", callback.Data)
-		return context.Respond(&telebot.CallbackResponse{Text: "Malformed data received"})
-	}
-
-	action := dataParts[1]
-	data := dataParts[2]
-
-	switch action {
-	case "movie":
-		return h.handleMovieDetails(context, data)
-	case "back_to_pagination":
-		return h.handleBackToPagination(context)
-	case "next":
-		return h.handleNextPage(context)
-	case "prev":
-		return h.handlePrevPage(context)
-	default:
-		return context.Respond(&telebot.CallbackResponse{Text: "Unknown action"})
-	}
-}
-
 func (h *movieHandler) handleMovieDetails(context telebot.Context, data string) error {
 	parsedId, err := strconv.Atoi(data)
 	if err != nil {
@@ -125,6 +96,37 @@ func (h *movieHandler) handleMovieDetails(context telebot.Context, data string) 
 	}
 
 	return context.Respond(&telebot.CallbackResponse{Text: "You found the movie!"})
+}
+
+func (h *movieHandler) handleWatchedDetails(context telebot.Context, movieIdStr string) error {
+	movieId, err := strconv.Atoi(movieIdStr)
+	if err != nil {
+		log.Print(err)
+		return context.Send("Invalid movie id")
+	}
+
+	movieData, err := movie.GetMovie(movieId)
+	if err != nil {
+		log.Printf("couldnt retrive movie from api: %v", err.Error())
+		return err
+	}
+
+	newMovie := firebase.Movie{
+		ID:        strconv.FormatInt(movieData.ID, 10),
+		Title:     movieData.Title,
+		Duration:  int(movieData.Runtime),
+		CreatedAt: time.Now(),
+	}
+
+	firebase.CreateMovie(&newMovie)
+
+	_, err = context.Bot().Send(context.Chat(), fmt.Sprintf("The Movie as watched with below data:\nDuration: *%d minutes*", movieData.Runtime), telebot.ModeMarkdown)
+	if err != nil {
+		log.Print(err)
+		return err
+	}
+
+	return nil
 }
 
 func (h *movieHandler) handleBackToPagination(context telebot.Context) error {
@@ -181,4 +183,37 @@ func updateMovieMessage(context telebot.Context, paginatedMovies []movie.Movie, 
 	}
 
 	return nil
+}
+
+func (h *movieHandler) MovieCallback(context telebot.Context) error {
+	callback := context.Callback()
+	trimmed := strings.TrimSpace(callback.Data)
+
+	if !strings.HasPrefix(trimmed, "movie|") {
+		return nil
+	}
+
+	dataParts := strings.Split(trimmed, "|")
+	if len(dataParts) != 3 {
+		log.Printf("Received malformed callback data: %s", callback.Data)
+		return context.Respond(&telebot.CallbackResponse{Text: "Malformed data received"})
+	}
+
+	action := dataParts[1]
+	data := dataParts[2]
+
+	switch action {
+	case "movie":
+		return h.handleMovieDetails(context, data)
+	case "watched":
+		return h.handleWatchedDetails(context, data)
+	case "back_to_pagination":
+		return h.handleBackToPagination(context)
+	case "next":
+		return h.handleNextPage(context)
+	case "prev":
+		return h.handlePrevPage(context)
+	default:
+		return context.Respond(&telebot.CallbackResponse{Text: "Unknown action"})
+	}
 }

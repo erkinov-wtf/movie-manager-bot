@@ -33,6 +33,7 @@ func main() {
 	commands.SetupDefaultRoutes(bot, container)
 	commands.SetupMovieRoutes(bot, container)
 	commands.SetupTVRoutes(bot, container)
+	commands.SetupInfoRoutes(bot, container)
 
 	log.Print("starting bot...")
 	bot.Start()

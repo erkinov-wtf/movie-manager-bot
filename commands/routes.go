@@ -25,6 +25,10 @@ func SetupTVRoutes(bot *telebot.Bot, container *dependencyInjection.Container) {
 	bot.Handle("/stv", container.TVHandler.SearchTV)
 }
 
+func SetupInfoRoutes(bot *telebot.Bot, container *dependencyInjection.Container) {
+	bot.Handle("/info", container.InfoHandler.Info)
+}
+
 func handleCallback(container *dependencyInjection.Container) func(c telebot.Context) error {
 	return func(c telebot.Context) error {
 		trimmed := strings.TrimSpace(c.Callback().Data)
@@ -32,8 +36,13 @@ func handleCallback(container *dependencyInjection.Container) func(c telebot.Con
 		switch {
 		case strings.HasPrefix(trimmed, "movie|"):
 			return container.MovieHandler.MovieCallback(c)
+
 		case strings.HasPrefix(trimmed, "tv|"):
 			return container.TVHandler.TVCallback(c)
+
+		case strings.HasPrefix(trimmed, "info|"):
+			return container.InfoHandler.InfoCallback(c)
+
 		default:
 			return c.Respond(&telebot.CallbackResponse{Text: "Unknown callback type"})
 		}
