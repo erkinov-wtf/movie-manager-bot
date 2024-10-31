@@ -7,14 +7,15 @@ import (
 	"movie-manager-bot/api/media/search"
 	"movie-manager-bot/api/media/tv"
 	"movie-manager-bot/helpers"
-	"movie-manager-bot/storage"
-	"movie-manager-bot/storage/firebase"
+	"movie-manager-bot/models"
+	"movie-manager-bot/storage/cache"
+	"movie-manager-bot/storage/database"
 	"strconv"
 	"strings"
 )
 
 var (
-	tvCache          = storage.NewCache()
+	tvCache          = cache.NewCache()
 	pagePointer      *int
 	maxPage, tvCount int
 	selectedTvShow   *tv.TV
@@ -213,15 +214,18 @@ func (h *tvHandler) handleWatched(ctx telebot.Context, data string) error {
 		}
 	}
 
-	newTv := firebase.TVShow{
-		ID:       strconv.FormatInt(selectedTvShow.ID, 10),
+	newTv := models.TVShows{
+		ApiID:    selectedTvShow.ID,
 		Name:     selectedTvShow.Name,
-		Seasons:  seasonNum,
-		Episodes: int(episodes),
-		Runtime:  int(runtime),
+		Seasons:  int64(seasonNum),
+		Episodes: episodes,
+		Runtime:  runtime,
 	}
 
-	firebase.CreateTvShow(&newTv)
+	if err = database.DB.Create(&newTv).Error; err != nil {
+		log.Printf("cant create new tv show: %v", err.Error())
+		return err
+	}
 
 	_, err = ctx.Bot().Send(ctx.Chat(), fmt.Sprintf("The TV Show added as watched with below data:\nSeasons: %v\nEpisodes: %v\nRuntime: %v", seasonNum, episodes, runtime), telebot.ModeMarkdown)
 	if err != nil {

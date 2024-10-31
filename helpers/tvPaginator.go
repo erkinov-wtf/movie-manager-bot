@@ -2,10 +2,10 @@ package helpers
 
 import (
 	"movie-manager-bot/api/media/tv"
-	"movie-manager-bot/storage"
+	"movie-manager-bot/storage/cache"
 )
 
-func PaginateTV(tvCache *storage.Cache, page, tvCount int) []tv.TV {
+func PaginateTV(tvCache *cache.Cache, page, tvCount int) []tv.TV {
 	const itemsPerPage = 3
 
 	start := (page - 1) * itemsPerPage

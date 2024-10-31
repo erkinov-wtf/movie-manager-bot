@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"gopkg.in/telebot.v3"
 	"log"
-	"movie-manager-bot/storage/firebase"
+	"movie-manager-bot/models"
+	"movie-manager-bot/storage/database"
 	"strconv"
 	"strings"
 )
@@ -40,8 +41,10 @@ func (*infoHandler) Info(context telebot.Context) error {
 }
 
 func (i *infoHandler) handleTVDetails(context telebot.Context, msgId string) error {
-	watchedShows, err := firebase.ListTvShows()
-	if err != nil {
+	var watchedShows []models.TVShows
+
+	if err = database.DB.Find(&watchedShows).Error; err != nil {
+		log.Printf("cant get all tv shows: %v", err.Error())
 		return err
 	}
 
@@ -80,8 +83,10 @@ func (i *infoHandler) handleTVDetails(context telebot.Context, msgId string) err
 }
 
 func (i *infoHandler) handleMovieDetails(context telebot.Context, msgId string) error {
-	watchedMovies, err := firebase.ListMovies()
-	if err != nil {
+	var watchedMovies []models.Movie
+
+	if err = database.DB.Find(&watchedMovies).Error; err != nil {
+		log.Printf("cant get all tv movies: %v", err.Error())
 		return err
 	}
 
@@ -89,7 +94,7 @@ func (i *infoHandler) handleMovieDetails(context telebot.Context, msgId string) 
 
 	for _, s := range watchedMovies {
 		info.amount++
-		info.totalTime += s.Duration
+		info.totalTime += s.Runtime
 	}
 
 	msgID, _ := strconv.Atoi(msgId)
@@ -146,7 +151,7 @@ func (i *infoHandler) InfoCallback(context telebot.Context) error {
 	}
 }
 
-func formatDuration(minutes int) string {
+func formatDuration(minutes int64) string {
 	days := minutes / (24 * 60)
 	remainingMinutes := minutes % (24 * 60)
 	hours := remainingMinutes / 60

@@ -8,14 +8,14 @@ import (
 	"movie-manager-bot/commands"
 	"movie-manager-bot/config"
 	"movie-manager-bot/dependencyInjection"
-	"movie-manager-bot/storage/firebase"
+	"movie-manager-bot/storage/database"
 	"time"
 )
 
 func main() {
 	config.MustLoad()
 	api.NewClient()
-	firebase.InitFirebase()
+	database.DBConnect()
 
 	settings := telebot.Settings{
 		Token:  config.Cfg.General.BotToken,

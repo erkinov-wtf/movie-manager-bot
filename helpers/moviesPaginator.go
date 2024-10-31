@@ -2,10 +2,10 @@ package helpers
 
 import (
 	movieType "movie-manager-bot/api/media/movie"
-	"movie-manager-bot/storage"
+	"movie-manager-bot/storage/cache"
 )
 
-func PaginateMovies(moviesCache *storage.Cache, page, movieCount int) []movieType.Movie {
+func PaginateMovies(moviesCache *cache.Cache, page, movieCount int) []movieType.Movie {
 	const itemsPerPage = 3
 
 	start := (page - 1) * itemsPerPage

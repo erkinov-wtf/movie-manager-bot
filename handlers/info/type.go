@@ -12,10 +12,10 @@ func NewInfoHandler() interfaces.InfoInterface {
 
 type tvStats struct {
 	amount    int
-	totalTime int
+	totalTime int64
 }
 
 type movieStats struct {
 	amount    int
-	totalTime int
+	totalTime int64
 }

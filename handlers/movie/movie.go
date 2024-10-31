@@ -7,15 +7,15 @@ import (
 	"movie-manager-bot/api/media/movie"
 	"movie-manager-bot/api/media/search"
 	"movie-manager-bot/helpers"
-	"movie-manager-bot/storage"
-	"movie-manager-bot/storage/firebase"
+	"movie-manager-bot/models"
+	"movie-manager-bot/storage/cache"
+	"movie-manager-bot/storage/database"
 	"strconv"
 	"strings"
-	"time"
 )
 
 var (
-	moviesCache         = storage.NewCache()
+	moviesCache         = cache.NewCache()
 	pagePointer         *int
 	maxPage, movieCount int
 )
@@ -111,14 +111,16 @@ func (h *movieHandler) handleWatchedDetails(context telebot.Context, movieIdStr 
 		return err
 	}
 
-	newMovie := firebase.Movie{
-		ID:        strconv.FormatInt(movieData.ID, 10),
-		Title:     movieData.Title,
-		Duration:  int(movieData.Runtime),
-		CreatedAt: time.Now(),
+	newMovie := models.Movie{
+		ApiID:   movieData.ID,
+		Title:   movieData.Title,
+		Runtime: movieData.Runtime,
 	}
 
-	firebase.CreateMovie(&newMovie)
+	if err = database.DB.Create(&newMovie).Error; err != nil {
+		log.Printf("cant create new movie: %v", err.Error())
+		return err
+	}
 
 	_, err = context.Bot().Send(context.Chat(), fmt.Sprintf("The Movie as watched with below data:\nDuration: *%d minutes*", movieData.Runtime), telebot.ModeMarkdown)
 	if err != nil {
