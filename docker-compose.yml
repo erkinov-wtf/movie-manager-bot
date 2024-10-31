@@ -2,11 +2,12 @@ services:
   movie-manager-db:
     image: postgres:17
     ports:
-      - ${DB_PORT}:5432
+      - ${DB_PORT}:${DB_PORT}
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
+      PGPORT: ${DB_PORT}
     container_name: movie-manager-db
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U postgres" ]
