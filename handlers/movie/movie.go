@@ -21,10 +21,10 @@ var (
 )
 
 func (*movieHandler) SearchMovie(context telebot.Context) error {
-	log.Print("/search command received")
+	log.Print("/sm command received")
 
 	if context.Message().Payload == "" {
-		err := context.Send("after /search title must be provided")
+		err := context.Send("after /sm title must be provided")
 		if err != nil {
 			log.Print(err)
 			return err
