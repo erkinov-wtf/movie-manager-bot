@@ -7,6 +7,7 @@ import (
 	"movie-manager-bot/dependencyInjection"
 	"movie-manager-bot/middleware"
 	"strings"
+	"time"
 )
 
 func SetupDefaultRoutes(bot *telebot.Bot, container *dependencyInjection.Container) {
@@ -17,6 +18,30 @@ func SetupDefaultRoutes(bot *telebot.Bot, container *dependencyInjection.Contain
 
 	bot.Handle(telebot.OnCallback, handleCallback(container))
 	bot.Handle("/start", container.DefaultHandler.Start)
+
+	// for dev debugging only
+	bot.Handle("/debug", func(context telebot.Context) error {
+		// Collect user info
+		user := context.Sender()
+		message := context.Message()
+
+		// Log detailed user and message info
+		log.Printf("Debug Info - Timestamp: %v", time.Now())
+		log.Printf("User Info: ID=%d, Username=%s, FirstName=%s, LastName=%s",
+			user.ID, user.Username, user.FirstName, user.LastName)
+		log.Printf("Message Info: Text=%s, Payload=%s, Date=%s",
+			message.Text, message.Payload, message.Time().Format("2006-01-02"))
+
+		// Send debug response to user
+		debugMessage := fmt.Sprintf("Hello %s! Here is your debug info:\n\n", user.FirstName)
+		debugMessage += fmt.Sprintf("User ID: %d\nUsername: %s\nFirst Name: %s\nLast Name: %s\n",
+			user.ID, user.Username, user.FirstName, user.LastName)
+		debugMessage += fmt.Sprintf("Message Text: %s\nMessage Payload: %s\nMessage Date: %s\n",
+			message.Text, message.Payload, message.Time().Format("2006-01-02"))
+
+		return context.Send(debugMessage)
+	})
+
 }
 
 func SetupMovieRoutes(bot *telebot.Bot, container *dependencyInjection.Container) {

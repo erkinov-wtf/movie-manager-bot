@@ -1,8 +1,10 @@
 package movie
 
 import (
+	"errors"
 	"fmt"
 	"gopkg.in/telebot.v3"
+	"gorm.io/gorm"
 	"log"
 	"movie-manager-bot/api/media/movie"
 	"movie-manager-bot/api/media/search"
@@ -105,6 +107,19 @@ func (h *movieHandler) handleWatchedDetails(context telebot.Context, movieIdStr 
 		return context.Send("Invalid movie id")
 	}
 
+	var existingMovie models.Movie
+	result := database.DB.Where("api_id = ? AND user_id = ?", movieId, context.Sender().ID).First(&existingMovie)
+	if result.Error == nil {
+		// Movie already exists in watched list
+		log.Printf("user has watched the movie: %v", existingMovie)
+		context.Send("You have already watched this movie")
+		return nil
+	}
+	if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		log.Printf("Database error: %v", result.Error)
+		return fmt.Errorf("database error: %v", result.Error)
+	}
+
 	movieData, err := movie.GetMovie(movieId)
 	if err != nil {
 		log.Printf("couldnt retrive movie from api: %v", err.Error())
@@ -112,6 +127,7 @@ func (h *movieHandler) handleWatchedDetails(context telebot.Context, movieIdStr 
 	}
 
 	newMovie := models.Movie{
+		UserID:  context.Sender().ID,
 		ApiID:   movieData.ID,
 		Title:   movieData.Title,
 		Runtime: movieData.Runtime,

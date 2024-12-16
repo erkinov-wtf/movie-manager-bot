@@ -62,11 +62,11 @@ func (i *infoHandler) handleTVDetails(context telebot.Context, msgId string) err
 └ 🕙 Total Time Wasted: *%d*
 └ ⌛️ Time Breakdown: *%s*
 
-🎯 *Achievement:* You've spent *%d* minutes watching TV shows! Keep ruining your precious time! 👍`,
+🎯 *Achievement:* You've spent *%d* hours watching TV shows! Keep ruining your precious time! 👍`,
 		info.amount,
 		info.totalTime,
 		formattedTime,
-		info.totalTime,
+		info.totalTime/60,
 	)
 
 	_, err := context.Bot().Edit(msg, text, telebot.ModeMarkdown)
@@ -104,11 +104,11 @@ func (i *infoHandler) handleMovieDetails(context telebot.Context, msgId string) 
 └ 🕙 Total Time Wasted: *%d*
 └ ⌛️ Time Breakdown: *%s*
 
-🎯 *Achievement:* You've spent *%d* minutes watching movies! Keep ruining your precious time! 👍`,
+🎯 *Achievement:* You've spent *%d* hours watching movies! Keep ruining your precious time! 👍`,
 		info.amount,
 		info.totalTime,
 		formattedTime,
-		info.totalTime,
+		info.totalTime/60,
 	)
 
 	_, err := context.Bot().Edit(msg, text, telebot.ModeMarkdown)
