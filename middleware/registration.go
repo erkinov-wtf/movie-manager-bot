@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"fmt"
 	"gopkg.in/telebot.v3"
 	"movie-manager-bot/models"
 	"movie-manager-bot/storage/cache"
@@ -32,7 +31,6 @@ func RequireRegistration(next telebot.HandlerFunc) telebot.HandlerFunc {
 		if !IsRegisteredUser(c) {
 			return c.Send("You need to register to use this bot. Please type /start to continue")
 		}
-		fmt.Println(userCache)
 		return next(c)
 	}
 }

@@ -10,10 +10,6 @@ import (
 	"strings"
 )
 
-var (
-	err error
-)
-
 func (*infoHandler) Info(context telebot.Context) error {
 	log.Print("/info command received")
 
@@ -43,7 +39,7 @@ func (*infoHandler) Info(context telebot.Context) error {
 func (i *infoHandler) handleTVDetails(context telebot.Context, msgId string) error {
 	var watchedShows []models.TVShows
 
-	if err = database.DB.Find(&watchedShows).Error; err != nil {
+	if err := database.DB.Find(&watchedShows).Error; err != nil {
 		log.Printf("cant get all tv shows: %v", err.Error())
 		return err
 	}
@@ -73,7 +69,7 @@ func (i *infoHandler) handleTVDetails(context telebot.Context, msgId string) err
 		info.totalTime,
 	)
 
-	_, err = context.Bot().Edit(msg, text, telebot.ModeMarkdown)
+	_, err := context.Bot().Edit(msg, text, telebot.ModeMarkdown)
 	if err != nil {
 		log.Print(err)
 		return err
@@ -85,7 +81,7 @@ func (i *infoHandler) handleTVDetails(context telebot.Context, msgId string) err
 func (i *infoHandler) handleMovieDetails(context telebot.Context, msgId string) error {
 	var watchedMovies []models.Movie
 
-	if err = database.DB.Find(&watchedMovies).Error; err != nil {
+	if err := database.DB.Find(&watchedMovies).Error; err != nil {
 		log.Printf("cant get all tv movies: %v", err.Error())
 		return err
 	}
@@ -115,7 +111,7 @@ func (i *infoHandler) handleMovieDetails(context telebot.Context, msgId string) 
 		info.totalTime,
 	)
 
-	_, err = context.Bot().Edit(msg, text, telebot.ModeMarkdown)
+	_, err := context.Bot().Edit(msg, text, telebot.ModeMarkdown)
 	if err != nil {
 		log.Print(err)
 		return err

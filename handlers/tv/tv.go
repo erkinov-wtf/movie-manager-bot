@@ -77,47 +77,6 @@ func (*tvHandler) SearchTV(context telebot.Context) error {
 	return nil
 }
 
-func (h *tvHandler) TVCallback(context telebot.Context) error {
-	callback := context.Callback()
-	trimmed := strings.TrimSpace(callback.Data)
-
-	if !strings.HasPrefix(trimmed, "tv|") {
-		return nil
-	}
-
-	dataParts := strings.Split(trimmed, "|")
-	if len(dataParts) != 3 {
-		log.Printf("Received malformed callback data: %s", callback.Data)
-		return context.Respond(&telebot.CallbackResponse{Text: "Malformed data received"})
-	}
-
-	action := dataParts[1]
-	data := dataParts[2]
-
-	switch action {
-	case "tv":
-		return h.handleTVDetails(context, data)
-
-	case "select_seasons":
-		return h.handleSelectSeasons(context, data)
-
-	case "watched":
-		return h.handleWatched(context, data)
-
-	case "back_to_pagination":
-		return h.handleBackToPagination(context)
-
-	case "next":
-		return h.handleNextPage(context)
-
-	case "prev":
-		return h.handlePrevPage(context)
-
-	default:
-		return context.Respond(&telebot.CallbackResponse{Text: "Unknown action"})
-	}
-}
-
 func (h *tvHandler) handleTVDetails(context telebot.Context, data string) error {
 	parsedId, err := strconv.Atoi(data)
 	if err != nil {
@@ -167,18 +126,47 @@ func (h *tvHandler) handleBackToPagination(context telebot.Context) error {
 
 func (h *tvHandler) handleSelectSeasons(context telebot.Context, tvId string) error {
 	TVId, _ := strconv.Atoi(tvId)
-	var err error
-	selectedTvShow, err = tv.GetTV(TVId)
-	if err != nil {
-		log.Print(err.Error())
-		return err
+
+	var watchedSeasons int = 0
+	if err := database.DB.Model(&models.TVShows{}).
+		Select("seasons").
+		Where("api_id = ? AND user_id = ?", TVId, context.Sender().ID).
+		Scan(&watchedSeasons).Error; err != nil {
+		if err.Error() != "record not found" {
+			log.Printf("Database error: %v", err)
+			return fmt.Errorf("database error: %v", err)
+		}
 	}
+
+	tvShow, err := tv.GetTV(TVId)
+	if err != nil {
+		log.Printf("Error fetching TV show: %v", err)
+		return fmt.Errorf("error fetching TV show: %v", err)
+	}
+
+	if watchedSeasons > 0 {
+		log.Printf("userId %v already watched tv show name %s, id %v", context.Sender().ID, tvShow.Name, tvShow.ID)
+	}
+
+	selectedTvShow = tvShow
 
 	btn := &telebot.ReplyMarkup{}
 	var btnRows []telebot.Row
 
+	emojis := map[int]string{
+		0: "Season 0️⃣", 1: "Season 1️⃣", 2: "Season 2️⃣", 3: "Season 3️⃣", 4: "Season 4️⃣",
+		5: "Season 5️⃣", 6: "Season 6️⃣", 7: "Season 7️⃣", 8: "Season 8️⃣", 9: "Season 9️⃣",
+	}
+
 	for i := 1; i <= int(selectedTvShow.Seasons); i++ {
-		btnRows = append(btnRows, btn.Row(btn.Data(fmt.Sprintf("Season %d️⃣", i), "", fmt.Sprintf("tv|watched|%v", i))))
+		emoji := emojis[i]
+		if emoji == "" {
+			emoji = fmt.Sprintf("Season %d", i)
+		}
+		if i <= watchedSeasons {
+			emoji = fmt.Sprintf("✅ %v", emoji)
+		}
+		btnRows = append(btnRows, btn.Row(btn.Data(fmt.Sprintf("%s", emoji), "", fmt.Sprintf("tv|watched|%v", i))))
 	}
 
 	btn.Inline(btnRows...)
@@ -192,11 +180,27 @@ func (h *tvHandler) handleSelectSeasons(context telebot.Context, tvId string) er
 	return nil
 }
 
-func (h *tvHandler) handleWatched(ctx telebot.Context, data string) error {
+func (h *tvHandler) handleWatched(context telebot.Context, data string) error {
+	var watchedSeasons int = 0
+	if err := database.DB.Model(&models.TVShows{}).
+		Select("seasons").
+		Where("api_id = ? AND user_id = ?", selectedTvShow.ID, context.Sender().ID).
+		Scan(&watchedSeasons).Error; err != nil {
+		if err.Error() != "record not found" {
+			log.Printf("Database error: %v", err)
+			return fmt.Errorf("database error: %v", err)
+		}
+	}
+
 	seasonNum, err := strconv.Atoi(data)
 	if err != nil {
 		log.Print(err)
-		return ctx.Send("Invalid season number.")
+		return context.Send("Invalid season number.")
+	}
+
+	if seasonNum <= watchedSeasons {
+		context.Send("You already watched this season, please select later seasons")
+		return nil
 	}
 
 	var episodes, runtime int64
@@ -210,11 +214,12 @@ func (h *tvHandler) handleWatched(ctx telebot.Context, data string) error {
 		for _, episode := range tvSeason.Episodes {
 			episodes++
 			runtime += episode.Runtime
-			log.Print(episode.Runtime)
+			log.Printf("TV Show: %v, Season: %v, Episode: %v, Runtime: %v", selectedTvShow.ID, i, episode.EpisodeNumber, episode.Runtime)
 		}
 	}
 
 	newTv := models.TVShows{
+		UserID:   context.Sender().ID,
 		ApiID:    selectedTvShow.ID,
 		Name:     selectedTvShow.Name,
 		Seasons:  int64(seasonNum),
@@ -222,12 +227,21 @@ func (h *tvHandler) handleWatched(ctx telebot.Context, data string) error {
 		Runtime:  runtime,
 	}
 
-	if err = database.DB.Create(&newTv).Error; err != nil {
-		log.Printf("cant create new tv show: %v", err.Error())
-		return err
+	if watchedSeasons > 0 {
+		if err = database.DB.Model(&models.TVShows{}).
+			Where("api_id = ? AND user_id = ?", selectedTvShow.ID, context.Sender().ID).
+			Updates(models.TVShows{Seasons: newTv.Seasons, Episodes: newTv.Episodes, Runtime: newTv.Runtime}).Error; err != nil {
+			log.Printf("cant update existing tv show data: %v", err.Error())
+			return err
+		}
+	} else {
+		if err = database.DB.Create(&newTv).Error; err != nil {
+			log.Printf("cant create new tv show: %v", err.Error())
+			return err
+		}
 	}
 
-	_, err = ctx.Bot().Send(ctx.Chat(), fmt.Sprintf("The TV Show added as watched with below data:\nSeasons: %v\nEpisodes: %v\nRuntime: %v", seasonNum, episodes, runtime), telebot.ModeMarkdown)
+	_, err = context.Bot().Send(context.Chat(), fmt.Sprintf("The TV Show added as watched with below data:\nSeasons: %v\nEpisodes: %v\nRuntime: %v", seasonNum, episodes, runtime), telebot.ModeMarkdown)
 	if err != nil {
 		log.Print(err)
 		return err
@@ -265,4 +279,45 @@ func updateTVMessage(context telebot.Context, paginatedTV []tv.TV, currentPage, 
 	}
 
 	return nil
+}
+
+func (h *tvHandler) TVCallback(context telebot.Context) error {
+	callback := context.Callback()
+	trimmed := strings.TrimSpace(callback.Data)
+
+	if !strings.HasPrefix(trimmed, "tv|") {
+		return nil
+	}
+
+	dataParts := strings.Split(trimmed, "|")
+	if len(dataParts) != 3 {
+		log.Printf("Received malformed callback data: %s", callback.Data)
+		return context.Respond(&telebot.CallbackResponse{Text: "Malformed data received"})
+	}
+
+	action := dataParts[1]
+	data := dataParts[2]
+
+	switch action {
+	case "tv":
+		return h.handleTVDetails(context, data)
+
+	case "select_seasons": //callback for Watched button
+		return h.handleSelectSeasons(context, data)
+
+	case "watched":
+		return h.handleWatched(context, data)
+
+	case "back_to_pagination":
+		return h.handleBackToPagination(context)
+
+	case "next":
+		return h.handleNextPage(context)
+
+	case "prev":
+		return h.handlePrevPage(context)
+
+	default:
+		return context.Respond(&telebot.CallbackResponse{Text: "Unknown action"})
+	}
 }

@@ -12,15 +12,11 @@ import (
 	"strings"
 )
 
-var (
-	err error
-)
-
 func (*defaultHandler) Start(context telebot.Context) error {
 	log.Print("/start command received")
 
 	var existingUser models.User
-	if err = database.DB.Where("id = ?", context.Sender().ID).First(&existingUser).Error; err != nil {
+	if err := database.DB.Where("id = ?", context.Sender().ID).First(&existingUser).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			btn := &telebot.ReplyMarkup{}
 			btnRows := []telebot.Row{
@@ -71,7 +67,7 @@ func (*defaultHandler) handleStartCallback(context telebot.Context, userId strin
 		return err
 	}
 
-	err = context.Send("You have been successfully registered.\n Now you can use this bot. Use /help for assistance)")
+	err = context.Send("You have been successfully registered.\nNow you can use this bot. Use /help for assistance)")
 	if err != nil {
 		log.Printf(err.Error())
 		return err
