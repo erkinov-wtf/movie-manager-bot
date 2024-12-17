@@ -30,14 +30,14 @@ func SetupDefaultRoutes(bot *telebot.Bot, container *dependencyInjection.Contain
 		log.Printf("User Info: ID=%d, Username=%s, FirstName=%s, LastName=%s",
 			user.ID, user.Username, user.FirstName, user.LastName)
 		log.Printf("Message Info: Text=%s, Payload=%s, Date=%s",
-			message.Text, message.Payload, message.Time().Format("2006-01-02"))
+			message.Text, message.Payload, message.Time().Format("2006-01-02 15:04:05"))
 
 		// Send debug response to user
 		debugMessage := fmt.Sprintf("Hello %s! Here is your debug info:\n\n", user.FirstName)
 		debugMessage += fmt.Sprintf("User ID: %d\nUsername: %s\nFirst Name: %s\nLast Name: %s\n",
 			user.ID, user.Username, user.FirstName, user.LastName)
 		debugMessage += fmt.Sprintf("Message Text: %s\nMessage Payload: %s\nMessage Date: %s\n",
-			message.Text, message.Payload, message.Time().Format("2006-01-02"))
+			message.Text, message.Payload, message.Time().Format("2006-01-02 15:04:05"))
 
 		return context.Send(debugMessage)
 	})
