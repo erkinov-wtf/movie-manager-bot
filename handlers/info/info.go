@@ -23,6 +23,7 @@ func (*infoHandler) Info(context telebot.Context) error {
 	btnRows := []telebot.Row{
 		btn.Row(btn.Data("📺 TV Shows", "", fmt.Sprintf("info|tv_info|%d", msg.ID))),
 		btn.Row(btn.Data("🎥 Movies", "", fmt.Sprintf("info|movie_info|%d", msg.ID))),
+		btn.Row(btn.Data("🍿 Full Info", "", fmt.Sprintf("info|full_info|%d", msg.ID))),
 	}
 
 	btn.Inline(btnRows...)
@@ -39,7 +40,7 @@ func (*infoHandler) Info(context telebot.Context) error {
 func (i *infoHandler) handleTVDetails(context telebot.Context, msgId string) error {
 	var watchedShows []models.TVShows
 
-	if err := database.DB.Find(&watchedShows).Error; err != nil {
+	if err := database.DB.Where("user_id = ?", context.Sender().ID).Find(&watchedShows).Error; err != nil {
 		log.Printf("cant get all tv shows: %v", err.Error())
 		return err
 	}
@@ -81,7 +82,7 @@ func (i *infoHandler) handleTVDetails(context telebot.Context, msgId string) err
 func (i *infoHandler) handleMovieDetails(context telebot.Context, msgId string) error {
 	var watchedMovies []models.Movie
 
-	if err := database.DB.Find(&watchedMovies).Error; err != nil {
+	if err := database.DB.Where("user_id = ?", context.Sender().ID).Find(&watchedMovies).Error; err != nil {
 		log.Printf("cant get all tv movies: %v", err.Error())
 		return err
 	}
@@ -120,6 +121,84 @@ func (i *infoHandler) handleMovieDetails(context telebot.Context, msgId string) 
 	return nil
 }
 
+func (i *infoHandler) handleFullDetails(context telebot.Context, data string) error {
+	var watchedMovies []models.Movie
+	var watchedShows []models.TVShows
+
+	if err := database.DB.Where("user_id = ?", context.Sender().ID).Find(&watchedMovies).Error; err != nil {
+		log.Printf("cant get all movies: %v", err.Error())
+		return err
+	}
+
+	if err := database.DB.Where("user_id = ?", context.Sender().ID).Find(&watchedShows).Error; err != nil {
+		log.Printf("cant get all tv shows: %v", err.Error())
+		return err
+	}
+
+	movieInfo := movieStats{}
+	for _, s := range watchedMovies {
+		movieInfo.amount++
+		movieInfo.totalTime += s.Runtime
+	}
+
+	// TV show stats
+	tvInfo := tvStats{}
+	for _, s := range watchedShows {
+		tvInfo.amount++
+		tvInfo.totalTime += s.Runtime
+	}
+
+	// Formatting the data
+	movieFormattedTime := formatDuration(movieInfo.totalTime)
+	tvFormattedTime := formatDuration(tvInfo.totalTime)
+	totalTime := movieInfo.totalTime + tvInfo.totalTime
+	totalFormattedTime := formatDuration(totalTime)
+
+	// Create the message
+	msgID, _ := strconv.Atoi(data)
+	msg := &telebot.Message{ID: msgID, Chat: context.Chat()}
+
+	text := fmt.Sprintf(`📺 *Full Info - Total Details*
+
+🎥 *Movies - Total Info*
+📊 *Statistics:*
+└ 📝 Movies Watched: *%d*
+└ 🕙 Total Time Wasted: *%d*
+└ ⌛️ Time Breakdown: *%s*
+
+📺 *TV Shows - Total Info*
+📊 *Statistics:*
+└ 📝 Shows Watched: *%d*
+└ 🕙 Total Time Wasted: *%d*
+└ ⌛️ Time Breakdown: *%s*
+
+🎯 *Total Info:*
+└ 📝 Total Movies + TV Shows Watched: *%d*
+└ 🕙 Total Time Wasted: *%d*
+└ ⌛️ Total Time Breakdown: *%s*
+
+🎯 *Achievement:* You've spent *%d* hours watching movies and TV shows! Keep ruining your precious time! 👍`,
+		movieInfo.amount,
+		movieInfo.totalTime,
+		movieFormattedTime,
+		tvInfo.amount,
+		tvInfo.totalTime,
+		tvFormattedTime,
+		movieInfo.amount+tvInfo.amount,
+		totalTime,
+		totalFormattedTime,
+		totalTime/60,
+	)
+
+	_, err := context.Bot().Edit(msg, text, telebot.ModeMarkdown)
+	if err != nil {
+		log.Print(err)
+		return err
+	}
+
+	return nil
+}
+
 func (i *infoHandler) InfoCallback(context telebot.Context) error {
 	callback := context.Callback()
 	trimmed := strings.TrimSpace(callback.Data)
@@ -142,6 +221,8 @@ func (i *infoHandler) InfoCallback(context telebot.Context) error {
 		return i.handleMovieDetails(context, data)
 	case "tv_info":
 		return i.handleTVDetails(context, data)
+	case "full_info":
+		return i.handleFullDetails(context, data)
 	default:
 		return context.Respond(&telebot.CallbackResponse{Text: "Unknown action"})
 	}
