@@ -38,7 +38,8 @@ func GenerateTVResponse(paginatedTV []tv.TV, currentPage, maxPage, tvCount int) 
 		btnRow,
 		btn.Row(
 			btn.Data("⏮️ Prev", "", "tv|prev|"),
-			btn.Text(fmt.Sprintf("%v | %v | %v", currentPage, maxPage, tvCount)),
+			btn.Text(fmt.Sprintf("Page %d | %d • %d shows", currentPage, maxPage, tvCount)),
+
 			btn.Data("Next ⏭️", "", "tv|next|"),
 		),
 	)

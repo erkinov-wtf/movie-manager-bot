@@ -36,7 +36,7 @@ func GenerateMovieResponse(paginatedMovies []movieType.Movie, currentPage, maxPa
 		btnRow,
 		btn.Row(
 			btn.Data("⏮️ Prev", "", "movie|prev|"),
-			btn.Text(fmt.Sprintf("%v | %v | %v", currentPage, maxPage, movieCount)),
+			btn.Text(fmt.Sprintf("Page %d | %d • %d movies", currentPage, maxPage, movieCount)),
 			btn.Data("Next ⏭️", "", "movie|next|"),
 		),
 	)
