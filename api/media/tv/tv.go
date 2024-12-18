@@ -95,7 +95,9 @@ func ShowTV(context telebot.Context, tvData *TV) error {
 	backBtn := &telebot.ReplyMarkup{}
 	backBtn.Inline(
 		backBtn.Row(backBtn.Data("🔙 Back to list", "tv|back_to_pagination|")),
-		backBtn.Row(backBtn.Data("📋 Watchlist", "tv|watchlist|"), backBtn.Data("✅ Watched", fmt.Sprintf("tv|select_seasons|%v", tvData.ID))),
+		backBtn.Row(
+			backBtn.Data("📋 Watchlist", fmt.Sprintf("tv|watchlist|%v", tvData.ID)),
+			backBtn.Data("✅ Watched", fmt.Sprintf("tv|select_seasons|%v", tvData.ID))),
 	)
 
 	err := context.Delete()

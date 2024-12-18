@@ -259,6 +259,41 @@ func (h *tvHandler) handleWatched(context telebot.Context, data string) error {
 	return nil
 }
 
+func (h *tvHandler) handleWatchlist(context telebot.Context, tvId string) error {
+	tvShowId, err := strconv.Atoi(tvId)
+	if err != nil {
+		log.Print(err)
+		return context.Send("Invalid tv show number.")
+	}
+
+	tvShow, err := tv.GetTV(tvShowId)
+	if err != nil {
+		log.Print(err)
+		return nil
+	}
+
+	newWatchlist := models.Watchlist{
+		UserID:    context.Sender().ID,
+		ShowApiId: tvShow.ID,
+		Type:      models.TVShowType,
+		Title:     tvShow.Name,
+		Image:     tvShow.PosterPath,
+	}
+
+	if err = database.DB.Create(&newWatchlist).Error; err != nil {
+		log.Print(err)
+		return context.Send("Something went wrong")
+	}
+
+	_, err = context.Bot().Send(context.Chat(), "Tv Show added to Watchlist", telebot.ModeMarkdown)
+	if err != nil {
+		log.Print(err)
+		return err
+	}
+
+	return nil
+}
+
 func (h *tvHandler) handleNextPage(context telebot.Context) error {
 	userID := context.Sender().ID
 
@@ -328,6 +363,9 @@ func (h *tvHandler) TVCallback(context telebot.Context) error {
 
 	case "watched":
 		return h.handleWatched(context, data)
+
+	case "watchlist":
+		return h.handleWatchlist(context, data)
 
 	case "back_to_pagination":
 		return h.handleBackToPagination(context)
