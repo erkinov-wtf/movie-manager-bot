@@ -6,7 +6,7 @@ import (
 	"movie-manager-bot/models"
 )
 
-func GenerateWatchlistResponse(paginatedWatchlists *[]models.Watchlist, currentPage, maxPage, watchlistCount int) (string, *telebot.ReplyMarkup) {
+func GenerateWatchlistResponse(paginatedWatchlists *[]models.Watchlist, currentPage, maxPage, watchlistCount int, watchlistType string) (string, *telebot.ReplyMarkup) {
 	var response string
 	for _, w := range *paginatedWatchlists {
 		var typeStr string
@@ -35,9 +35,9 @@ func GenerateWatchlistResponse(paginatedWatchlists *[]models.Watchlist, currentP
 	btn.Inline(
 		btnRow,
 		btn.Row(
-			btn.Data("⏮️ Prev", "", "watchlist|prev|"),
-			btn.Text(fmt.Sprintf("Page %d | %d • %d shows", currentPage, maxPage, watchlistCount)),
-			btn.Data("Next ⏭️", "", "watchlist|next|"),
+			btn.Data("⏮️ Prev", "", fmt.Sprintf("watchlist|prev|%s", watchlistType)),
+			btn.Text(fmt.Sprintf("%d | %d • %d", currentPage, maxPage, watchlistCount)),
+			btn.Data("Next ⏭️", "", fmt.Sprintf("watchlist|next|%s", watchlistType)),
 		),
 	)
 

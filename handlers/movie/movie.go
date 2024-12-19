@@ -137,6 +137,41 @@ func (h *movieHandler) handleWatchedDetails(context telebot.Context, movieIdStr 
 	return nil
 }
 
+func (h *movieHandler) handleWatchlist(context telebot.Context, data string) error {
+	movieId, err := strconv.Atoi(data)
+	if err != nil {
+		log.Print(err)
+		return context.Send("Invalid movie number.")
+	}
+
+	movieData, err := movie.GetMovie(movieId)
+	if err != nil {
+		log.Print(err)
+		return nil
+	}
+
+	newWatchlist := models.Watchlist{
+		UserID:    context.Sender().ID,
+		ShowApiId: movieData.ID,
+		Type:      models.MovieType,
+		Title:     movieData.Title,
+		Image:     movieData.PosterPath,
+	}
+
+	if err = database.DB.Create(&newWatchlist).Error; err != nil {
+		log.Print(err)
+		return context.Send("Something went wrong")
+	}
+
+	_, err = context.Bot().Send(context.Chat(), "Movie added to Watchlist", telebot.ModeMarkdown)
+	if err != nil {
+		log.Print(err)
+		return err
+	}
+
+	return nil
+}
+
 func (h *movieHandler) handleBackToPagination(context telebot.Context) error {
 	userID := context.Sender().ID
 
@@ -226,14 +261,22 @@ func (h *movieHandler) MovieCallback(context telebot.Context) error {
 	switch action {
 	case "movie":
 		return h.handleMovieDetails(context, data)
+
 	case "watched":
 		return h.handleWatchedDetails(context, data)
+
+	case "watchlist":
+		return h.handleWatchlist(context, data)
+
 	case "back_to_pagination":
 		return h.handleBackToPagination(context)
+
 	case "next":
 		return h.handleNextPage(context)
+
 	case "prev":
 		return h.handlePrevPage(context)
+
 	default:
 		return context.Respond(&telebot.CallbackResponse{Text: "Unknown action"})
 	}

@@ -65,7 +65,7 @@ func (h *watchlistHandler) handleTVWatchlist(context telebot.Context, msgId stri
 	totalPages := (totalItems + itemsPerPage - 1) / itemsPerPage
 
 	paginatedWatchlist := helpers.PaginateWatchlist(watchlist, currentPage)
-	response, btn := helpers.GenerateWatchlistResponse(&paginatedWatchlist, currentPage, totalPages, totalItems)
+	response, btn := helpers.GenerateWatchlistResponse(&paginatedWatchlist, currentPage, totalPages, totalItems, string(models.TVShowType))
 
 	_, err := context.Bot().Edit(msg, response, btn, telebot.ModeMarkdown)
 	if err != nil {
@@ -103,7 +103,7 @@ func (h *watchlistHandler) handleMovieWatchlist(context telebot.Context, msgId s
 	totalPages := (totalItems + itemsPerPage - 1) / itemsPerPage
 
 	paginatedWatchlist := helpers.PaginateWatchlist(watchlist, currentPage)
-	response, btn := helpers.GenerateWatchlistResponse(&paginatedWatchlist, currentPage, totalPages, totalItems)
+	response, btn := helpers.GenerateWatchlistResponse(&paginatedWatchlist, currentPage, totalPages, totalItems, string(models.MovieType))
 
 	_, err := context.Bot().Edit(msg, response, btn, telebot.ModeMarkdown)
 	if err != nil {
@@ -118,69 +118,70 @@ func (h *watchlistHandler) handleWatchlistInfo(context telebot.Context, data str
 	return context.Send("You found this part cool " + data) //todo implement fully
 }
 
-func (h *watchlistHandler) handlePagination(context telebot.Context, watchlist []models.Watchlist, currentPage, totalPages int, action string) error {
-	if action == "next" && currentPage < totalPages {
-		currentPage++
-	} else if action == "prev" && currentPage > 1 {
-		currentPage--
-	}
-
-	paginatedWatchlist := helpers.PaginateWatchlist(watchlist, currentPage)
-
-	response, btn := helpers.GenerateWatchlistResponse(&paginatedWatchlist, currentPage, totalPages, len(watchlist))
-
-	_, err := context.Bot().Edit(context.Message(), response, btn, telebot.ModeMarkdown)
-	if err != nil {
-		log.Print(err)
-		return err
-	}
-
-	return context.Respond(&telebot.CallbackResponse{Text: "Page updated!"})
-}
-
 func (h *watchlistHandler) WatchlistCallback(context telebot.Context) error {
 	callback := context.Callback()
 	trimmed := strings.TrimSpace(callback.Data)
+	log.Printf("Callback data: %s", trimmed) // Add logging
 
 	if !strings.HasPrefix(trimmed, "watchlist|") {
 		return nil
 	}
 
 	dataParts := strings.Split(trimmed, "|")
-	if len(dataParts) != 3 {
+	if len(dataParts) < 3 {
 		log.Printf("Received malformed callback data: %s", callback.Data)
 		return context.Respond(&telebot.CallbackResponse{Text: "Malformed data received"})
 	}
 
 	action := dataParts[1]
-	data := dataParts[2]
+	watchlistType := dataParts[2]
 
 	switch action {
 	case "tv":
-		return h.handleTVWatchlist(context, data)
-
+		return h.handleTVWatchlist(context, watchlistType)
 	case "movie":
-		return h.handleMovieWatchlist(context, data)
-
+		return h.handleMovieWatchlist(context, watchlistType)
 	case "info":
-		return h.handleWatchlistInfo(context, data)
-
+		return h.handleWatchlistInfo(context, watchlistType)
 	case "next", "prev":
-		watchlistType := dataParts[2]
 		var watchlist []models.Watchlist
+		var currentPage int = 1 // Default to page 1
 
-		if watchlistType == "tv" {
-			_ = database.DB.Where("user_id = ? AND type = ?", context.Sender().ID, models.TVShowType).Find(&watchlist).Error
-		} else if watchlistType == "movie" {
-			_ = database.DB.Where("user_id = ? AND type = ?", context.Sender().ID, models.MovieType).Find(&watchlist).Error
+		// Determine watchlist type and fetch data
+		if err := database.DB.Where("user_id = ? AND type = ?", context.Sender().ID, watchlistType).Find(&watchlist).Error; err != nil {
+			log.Print(err)
+			return context.Send("Something went wrong")
 		}
 
+		const itemsPerPage = 3
 		totalItems := len(watchlist)
-		itemsPerPage := 3
 		totalPages := (totalItems + itemsPerPage - 1) / itemsPerPage
-		currentPage, _ := strconv.Atoi(callback.Message.Payload)
 
-		return h.handlePagination(context, watchlist, currentPage, totalPages, action)
+		if action == "next" && currentPage < totalPages {
+			currentPage++
+		} else if action == "prev" && currentPage > 1 {
+			currentPage--
+		}
+
+		if (action == "next" && currentPage > totalPages) || (action == "prev" && currentPage < 1) {
+			return context.Respond(&telebot.CallbackResponse{
+				Text: "No more pages to show",
+			})
+		}
+
+		paginatedWatchlist := helpers.PaginateWatchlist(watchlist, currentPage)
+		response, btn := helpers.GenerateWatchlistResponse(&paginatedWatchlist, currentPage, totalPages, totalItems, watchlistType)
+
+		_, err := context.Bot().Edit(context.Message(), response, btn, telebot.ModeMarkdown)
+		if err != nil {
+			log.Printf("Edit error: %v", err)
+			if strings.Contains(err.Error(), "message is not modified") {
+				return context.Respond(&telebot.CallbackResponse{Text: "No changes to display"})
+			}
+			return err
+		}
+
+		return context.Respond(&telebot.CallbackResponse{Text: "Page updated!"})
 
 	default:
 		return context.Respond(&telebot.CallbackResponse{Text: "Unknown action"})
