@@ -29,15 +29,15 @@ func GenerateWatchlistResponse(paginatedWatchlists *[]models.Watchlist, currentP
 	btnRow := telebot.Row{}
 
 	for i, w := range *paginatedWatchlists {
-		btnRow = append(btnRow, btn.Data(fmt.Sprintf("%d️⃣", i+1), "", fmt.Sprintf("watchlist|info|%v", w.ID)))
+		btnRow = append(btnRow, btn.Data(fmt.Sprintf("%d️⃣", i+1), "", fmt.Sprintf("watchlist|info|%v-%v", w.Type, w.ShowApiId)))
 	}
 
 	btn.Inline(
 		btnRow,
 		btn.Row(
-			btn.Data("⏮️ Prev", "", fmt.Sprintf("watchlist|prev|%s", watchlistType)),
+			btn.Data("⏮️ Prev", "", fmt.Sprintf("watchlist|prev|%s-%v", watchlistType, currentPage)),
 			btn.Text(fmt.Sprintf("%d | %d • %d", currentPage, maxPage, watchlistCount)),
-			btn.Data("Next ⏭️", "", fmt.Sprintf("watchlist|next|%s", watchlistType)),
+			btn.Data("Next ⏭️", "", fmt.Sprintf("watchlist|next|%s-%v", watchlistType, currentPage)),
 		),
 	)
 

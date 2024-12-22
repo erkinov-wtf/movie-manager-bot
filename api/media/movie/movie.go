@@ -11,9 +11,12 @@ import (
 	"movie-manager-bot/api/media/image"
 	"movie-manager-bot/config"
 	"movie-manager-bot/helpers/utils"
+	"movie-manager-bot/models"
+	"movie-manager-bot/storage/database"
 	"net/http"
 )
 
+// GetMovie fetches movie details by ID from the API.
 func GetMovie(movieId int) (*Movie, error) {
 	url := utils.MakeUrl(fmt.Sprintf("%s/%v", config.Cfg.Endpoints.GetMovie, movieId), nil)
 
@@ -26,24 +29,27 @@ func GetMovie(movieId int) (*Movie, error) {
 	}(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("received non-200 response: %d", resp.StatusCode)
+		return nil, fmt.Errorf("non-200 response: %d", resp.StatusCode)
 	}
 
 	var result Movie
 	if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("error parsing json response: %w", err)
+		return nil, fmt.Errorf("error parsing JSON response: %w", err)
 	}
 
 	return &result, nil
 }
 
+// ShowMovie displays movie details along with an image and interactive buttons.
 func ShowMovie(context telebot.Context, movieData *Movie) error {
+	// Retrieve movie poster image
 	imgBuffer, err := image.GetImage(movieData.PosterPath)
 	if err != nil {
 		log.Printf("Error retrieving image: %v", err)
 		return fmt.Errorf("could not retrieve image: %w", err)
 	}
 
+	// Prepare movie details caption
 	caption := fmt.Sprintf(
 		"🎬 *Title*: %v\n\n"+
 			"📝 *Overview*: %v\n\n"+
@@ -63,31 +69,62 @@ func ShowMovie(context telebot.Context, movieData *Movie) error {
 		movieData.Status,
 	)
 
-	backBtn := &telebot.ReplyMarkup{}
-	backBtn.Inline(
-		backBtn.Row(backBtn.Data("🔙 Back to list", "movie|back_to_pagination|")),
-		backBtn.Row(
-			backBtn.Data("📋 Watchlist", fmt.Sprintf("movie|watchlist|%v", movieData.ID)),
-			backBtn.Data("✅ Watched", fmt.Sprintf("movie|watched|%d", movieData.ID)),
-		),
-	)
+	// Check if the movie is already in the user's watchlist
+	var watchlist []models.Watchlist
+	if err = database.DB.Where("show_api_id = ? AND user_id = ?", movieData.ID, context.Sender().ID).Find(&watchlist).Error; err != nil {
+		log.Printf("Database error: %v", err)
+		return context.Send("Something went wrong while checking your watchlist.")
+	}
 
-	err = context.Delete()
-	if err != nil {
+	replyMarkup := generateReplyMarkup(movieData.ID, len(watchlist) > 0)
+
+	// Delete the original context message
+	if err = context.Delete(); err != nil {
 		log.Printf("Failed to delete original message: %v", err)
 	}
 
+	// Send the movie details with poster and buttons
 	imageFile := &telebot.Photo{
 		File:    telebot.File{FileReader: bytes.NewReader(imgBuffer.Bytes())},
 		Caption: caption,
 	}
 
-	_, err = context.Bot().Send(context.Chat(), imageFile, backBtn, telebot.ModeMarkdown)
+	_, err = context.Bot().Send(context.Chat(), imageFile, replyMarkup, telebot.ModeMarkdown)
 	if err != nil {
 		log.Printf("Failed to send movie details: %v", err)
 		return fmt.Errorf("could not send movie details: %w", err)
 	}
 
-	log.Printf("Movie details successfully sent for movie ID: %d", movieData.ID)
+	log.Printf("Movie details sent successfully for movie ID: %d", movieData.ID)
 	return nil
+}
+
+// generateReplyMarkup generates inline keyboard buttons for the movie.
+func generateReplyMarkup(movieID int64, isWatchlisted bool) *telebot.ReplyMarkup {
+	btn := &telebot.ReplyMarkup{}
+
+	backButton := btn.Data("🔙 Back to list", "movie|back_to_pagination|")
+	watchlistButton := btn.Data(
+		"🌟 Watchlist", fmt.Sprintf("movie|watchlist|%v", movieID),
+	)
+	watchlistedButton := btn.Data(
+		"📌 Watchlisted", fmt.Sprintf("", movieID),
+	)
+	watchedButton := btn.Data(
+		"👀 Watched", fmt.Sprintf("movie|watched|%v", movieID),
+	)
+
+	if isWatchlisted {
+		btn.Inline(
+			btn.Row(backButton),
+			btn.Row(watchlistedButton, watchedButton),
+		)
+	} else {
+		btn.Inline(
+			btn.Row(backButton),
+			btn.Row(watchlistButton, watchedButton),
+		)
+	}
+
+	return btn
 }

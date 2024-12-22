@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"gopkg.in/telebot.v3"
 	"log"
+	"movie-manager-bot/api/media/movie"
+	"movie-manager-bot/api/media/tv"
 	"movie-manager-bot/helpers"
 	"movie-manager-bot/models"
 	"movie-manager-bot/storage/database"
@@ -115,13 +117,56 @@ func (h *watchlistHandler) handleMovieWatchlist(context telebot.Context, msgId s
 }
 
 func (h *watchlistHandler) handleWatchlistInfo(context telebot.Context, data string) error {
-	return context.Send("You found this part cool " + data) //todo implement fully
+	dataParts := strings.Split(data, "-")
+	if len(dataParts) < 2 {
+		log.Printf("Received malformed callback data for waitlist: %s", data)
+		return context.Respond(&telebot.CallbackResponse{Text: "Malformed data received"})
+	}
+
+	movieType := dataParts[0]
+	movieId := dataParts[1]
+
+	parsedId, err := strconv.Atoi(movieId)
+	if err != nil {
+		log.Print(err)
+		return err
+	}
+
+	if movieType == string(models.MovieType) {
+		movieData, err := movie.GetMovie(parsedId)
+		if err != nil {
+			log.Print(err)
+			return err
+		}
+
+		err = movie.ShowMovie(context, movieData)
+		if err != nil {
+			log.Print(err)
+			return err
+		}
+
+		return context.Respond(&telebot.CallbackResponse{Text: "You found the movie!"})
+	} else {
+		tvData, err := tv.GetTV(parsedId)
+		if err != nil {
+			log.Print(err)
+			return err
+		}
+
+		err = tv.ShowTV(context, tvData)
+		if err != nil {
+			log.Print(err)
+			return err
+		}
+
+		return context.Respond(&telebot.CallbackResponse{Text: "You found the tv!"})
+	}
 }
 
 func (h *watchlistHandler) WatchlistCallback(context telebot.Context) error {
 	callback := context.Callback()
 	trimmed := strings.TrimSpace(callback.Data)
-	log.Printf("Callback data: %s", trimmed) // Add logging
+	log.Printf("Callback data: %s", trimmed)
 
 	if !strings.HasPrefix(trimmed, "watchlist|") {
 		return nil
@@ -134,19 +179,33 @@ func (h *watchlistHandler) WatchlistCallback(context telebot.Context) error {
 	}
 
 	action := dataParts[1]
-	watchlistType := dataParts[2]
+	data := dataParts[2]
 
 	switch action {
 	case "tv":
-		return h.handleTVWatchlist(context, watchlistType)
-	case "movie":
-		return h.handleMovieWatchlist(context, watchlistType)
-	case "info":
-		return h.handleWatchlistInfo(context, watchlistType)
-	case "next", "prev":
-		var watchlist []models.Watchlist
-		var currentPage int = 1 // Default to page 1
+		return h.handleTVWatchlist(context, data)
 
+	case "movie":
+		return h.handleMovieWatchlist(context, data)
+
+	case "info":
+		return h.handleWatchlistInfo(context, data)
+
+	case "next", "prev":
+		paginationData := strings.Split(data, "-")
+		if len(paginationData) != 2 {
+			log.Printf("Received malformed callback data for watchlist pagination: %s", data)
+			return context.Respond(&telebot.CallbackResponse{Text: "Malformed data received"})
+		}
+
+		watchlistType := paginationData[0]
+		currentPage, err := strconv.Atoi(paginationData[1])
+		if err != nil {
+			log.Printf("Invalid page number: %v", err)
+			return context.Respond(&telebot.CallbackResponse{Text: "Invalid page number"})
+		}
+
+		var watchlist []models.Watchlist
 		// Determine watchlist type and fetch data
 		if err := database.DB.Where("user_id = ? AND type = ?", context.Sender().ID, watchlistType).Find(&watchlist).Error; err != nil {
 			log.Print(err)
@@ -163,16 +222,10 @@ func (h *watchlistHandler) WatchlistCallback(context telebot.Context) error {
 			currentPage--
 		}
 
-		if (action == "next" && currentPage > totalPages) || (action == "prev" && currentPage < 1) {
-			return context.Respond(&telebot.CallbackResponse{
-				Text: "No more pages to show",
-			})
-		}
-
 		paginatedWatchlist := helpers.PaginateWatchlist(watchlist, currentPage)
 		response, btn := helpers.GenerateWatchlistResponse(&paginatedWatchlist, currentPage, totalPages, totalItems, watchlistType)
 
-		_, err := context.Bot().Edit(context.Message(), response, btn, telebot.ModeMarkdown)
+		_, err = context.Bot().Edit(context.Message(), response, btn, telebot.ModeMarkdown)
 		if err != nil {
 			log.Printf("Edit error: %v", err)
 			if strings.Contains(err.Error(), "message is not modified") {

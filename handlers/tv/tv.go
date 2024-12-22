@@ -101,36 +101,6 @@ func (h *tvHandler) handleTVDetails(context telebot.Context, data string) error 
 	return context.Respond(&telebot.CallbackResponse{Text: "You found the tv!"})
 }
 
-func (h *tvHandler) handleBackToPagination(context telebot.Context) error {
-	userID := context.Sender().ID
-	log.Print("returning to paginated results")
-
-	if _, ok := tvCache[userID]; !ok {
-		return context.Respond(&telebot.CallbackResponse{Text: "No search results to return to"})
-	}
-
-	err := context.Delete()
-	if err != nil {
-		log.Printf("Failed to delete tv details message: %v", err)
-	}
-
-	paginatedTV := helpers.PaginateTV(tvCache[userID], *pagePointer[userID], tvCount[userID])
-	response, btn := helpers.GenerateTVResponse(paginatedTV, *pagePointer[userID], maxPage[userID], tvCount[userID])
-	_, err = context.Bot().Send(context.Chat(), response, btn, telebot.ModeMarkdown)
-	if err != nil {
-		log.Print(err)
-		return err
-	}
-
-	err = context.Respond(&telebot.CallbackResponse{Text: "Returning to list"})
-	if err != nil {
-		log.Print(err)
-		return err
-	}
-
-	return nil
-}
-
 func (h *tvHandler) handleSelectSeasons(context telebot.Context, tvId string) error {
 	userID := context.Sender().ID
 	TVId, _ := strconv.Atoi(tvId)
@@ -189,9 +159,22 @@ func (h *tvHandler) handleSelectSeasons(context telebot.Context, tvId string) er
 }
 
 func (h *tvHandler) handleWatched(context telebot.Context, data string) error {
+	// begin transaction
+	tx := database.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	if err := tx.Error; err != nil {
+		log.Print(err)
+		return context.Send("Something went wrong")
+	}
+
 	userID := context.Sender().ID
 	var watchedSeasons int = 0
-	if err := database.DB.Model(&models.TVShows{}).
+	if err := tx.Model(&models.TVShows{}).
 		Select("seasons").
 		Where("api_id = ? AND user_id = ?", selectedTvShow[userID].ID, userID).
 		Scan(&watchedSeasons).Error; err != nil {
@@ -237,18 +220,25 @@ func (h *tvHandler) handleWatched(context telebot.Context, data string) error {
 	}
 
 	if watchedSeasons > 0 {
-		if err = database.DB.Model(&models.TVShows{}).
+		if err = tx.Model(&models.TVShows{}).
 			Where("api_id = ? AND user_id = ?", selectedTvShow[userID].ID, userID).
 			Updates(models.TVShows{Seasons: newTv.Seasons, Episodes: newTv.Episodes, Runtime: newTv.Runtime}).Error; err != nil {
 			log.Printf("cant update existing tv show data: %v", err.Error())
 			return err
 		}
 	} else {
-		if err = database.DB.Create(&newTv).Error; err != nil {
+		if err = tx.Create(&newTv).Error; err != nil {
 			log.Printf("cant create new tv show: %v", err.Error())
 			return err
 		}
 	}
+
+	if err = tx.Where("show_api_id = ? AND user_id = ?", selectedTvShow[userID].ID, userID).Delete(&models.Watchlist{}).Error; err != nil {
+		log.Print(err)
+		return context.Send("Something went wrong")
+	}
+
+	tx.Commit()
 
 	_, err = context.Bot().Send(context.Chat(), fmt.Sprintf("The TV Show added as watched with below data:\nSeasons: %v\nEpisodes: %v\nRuntime: %v", seasonNum, episodes, runtime), telebot.ModeMarkdown)
 	if err != nil {
@@ -286,6 +276,36 @@ func (h *tvHandler) handleWatchlist(context telebot.Context, tvId string) error 
 	}
 
 	_, err = context.Bot().Send(context.Chat(), "Tv Show added to Watchlist", telebot.ModeMarkdown)
+	if err != nil {
+		log.Print(err)
+		return err
+	}
+
+	return nil
+}
+
+func (h *tvHandler) handleBackToPagination(context telebot.Context) error {
+	userID := context.Sender().ID
+	log.Print("returning to paginated results")
+
+	if _, ok := tvCache[userID]; !ok {
+		return context.Respond(&telebot.CallbackResponse{Text: "No search results to return to"})
+	}
+
+	err := context.Delete()
+	if err != nil {
+		log.Printf("Failed to delete tv details message: %v", err)
+	}
+
+	paginatedTV := helpers.PaginateTV(tvCache[userID], *pagePointer[userID], tvCount[userID])
+	response, btn := helpers.GenerateTVResponse(paginatedTV, *pagePointer[userID], maxPage[userID], tvCount[userID])
+	_, err = context.Bot().Send(context.Chat(), response, btn, telebot.ModeMarkdown)
+	if err != nil {
+		log.Print(err)
+		return err
+	}
+
+	err = context.Respond(&telebot.CallbackResponse{Text: "Returning to list"})
 	if err != nil {
 		log.Print(err)
 		return err
