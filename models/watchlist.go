@@ -30,4 +30,5 @@ type Type string
 const (
 	MovieType  Type = "MOVIE"
 	TVShowType Type = "TV_SHOW"
+	AllType    Type = "ALL"
 )

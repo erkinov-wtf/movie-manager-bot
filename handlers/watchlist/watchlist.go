@@ -26,7 +26,7 @@ func (*watchlistHandler) WatchlistInfo(context telebot.Context) error {
 	btnRows := []telebot.Row{
 		btn.Row(btn.Data("📺 TV Shows Watchlist", "", fmt.Sprintf("watchlist|tv|%d", msg.ID))),
 		btn.Row(btn.Data("🎥 Movies Watchlist", "", fmt.Sprintf("watchlist|movie|%d", msg.ID))),
-		btn.Row(btn.Data("🍿 Whole Watchlist", "", fmt.Sprintf("watchlist|whole|%d", msg.ID))),
+		btn.Row(btn.Data("🍿 Whole Watchlist", "", fmt.Sprintf("watchlist|full|%d", msg.ID))),
 	}
 
 	btn.Inline(btnRows...)
@@ -61,7 +61,6 @@ func (h *watchlistHandler) handleTVWatchlist(context telebot.Context, msgId stri
 		return nil
 	}
 
-	const itemsPerPage = 3
 	currentPage := 1
 	totalItems := len(watchlist)
 	totalPages := (totalItems + itemsPerPage - 1) / itemsPerPage
@@ -99,13 +98,49 @@ func (h *watchlistHandler) handleMovieWatchlist(context telebot.Context, msgId s
 		return nil
 	}
 
-	const itemsPerPage = 3
 	currentPage := 1
 	totalItems := len(watchlist)
 	totalPages := (totalItems + itemsPerPage - 1) / itemsPerPage
 
 	paginatedWatchlist := helpers.PaginateWatchlist(watchlist, currentPage)
 	response, btn := helpers.GenerateWatchlistResponse(&paginatedWatchlist, currentPage, totalPages, totalItems, string(models.MovieType))
+
+	_, err := context.Bot().Edit(msg, response, btn, telebot.ModeMarkdown)
+	if err != nil {
+		log.Print(err)
+		return err
+	}
+
+	return nil
+}
+
+func (h *watchlistHandler) handleFullWatchlist(context telebot.Context, msgId string) error {
+	msgID, _ := strconv.Atoi(msgId)
+	msg := &telebot.Message{ID: msgID, Chat: context.Chat()}
+
+	var watchlist []models.Watchlist
+
+	if err := database.DB.Where("user_id = ?", context.Sender().ID).Find(&watchlist).Error; err != nil {
+		log.Print(err)
+		return context.Send("Something went wrong")
+	}
+
+	if len(watchlist) == 0 {
+		log.Print("No records found")
+		_, err := context.Bot().Edit(msg, "No records found", telebot.ModeMarkdown)
+		if err != nil {
+			log.Print(err)
+			return err
+		}
+		return nil
+	}
+
+	currentPage := 1
+	totalItems := len(watchlist)
+	totalPages := (totalItems + itemsPerPage - 1) / itemsPerPage
+
+	paginatedWatchlist := helpers.PaginateWatchlist(watchlist, currentPage)
+	response, btn := helpers.GenerateWatchlistResponse(&paginatedWatchlist, currentPage, totalPages, totalItems, string(models.AllType))
 
 	_, err := context.Bot().Edit(msg, response, btn, telebot.ModeMarkdown)
 	if err != nil {
@@ -188,6 +223,9 @@ func (h *watchlistHandler) WatchlistCallback(context telebot.Context) error {
 	case "movie":
 		return h.handleMovieWatchlist(context, data)
 
+	case "full":
+		return h.handleFullWatchlist(context, data)
+
 	case "info":
 		return h.handleWatchlistInfo(context, data)
 
@@ -207,12 +245,18 @@ func (h *watchlistHandler) WatchlistCallback(context telebot.Context) error {
 
 		var watchlist []models.Watchlist
 		// Determine watchlist type and fetch data
-		if err := database.DB.Where("user_id = ? AND type = ?", context.Sender().ID, watchlistType).Find(&watchlist).Error; err != nil {
-			log.Print(err)
-			return context.Send("Something went wrong")
+		if watchlistType == string(models.AllType) {
+			if err = database.DB.Where("user_id = ?", context.Sender().ID).Find(&watchlist).Error; err != nil {
+				log.Print(err)
+				return context.Send("Something went wrong")
+			}
+		} else {
+			if err = database.DB.Where("user_id = ? AND type = ?", context.Sender().ID, watchlistType).Find(&watchlist).Error; err != nil {
+				log.Print(err)
+				return context.Send("Something went wrong")
+			}
 		}
 
-		const itemsPerPage = 3
 		totalItems := len(watchlist)
 		totalPages := (totalItems + itemsPerPage - 1) / itemsPerPage
 

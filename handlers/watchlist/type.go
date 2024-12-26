@@ -9,3 +9,5 @@ type watchlistHandler struct{}
 func NewWatchlistHandler() interfaces.WatchlistInterface {
 	return &watchlistHandler{}
 }
+
+const itemsPerPage = 3
