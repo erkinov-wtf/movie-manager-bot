@@ -62,7 +62,7 @@ func GetSeason(tvId, seasonNumber int) (*Season, error) {
 	return &result, nil
 }
 
-func ShowTV(context telebot.Context, tvData *TV) error {
+func ShowTV(context telebot.Context, tvData *TV, isTVShow bool) error {
 	// Retrieve TV poster image
 	imgBuffer, err := image.GetImage(tvData.PosterPath)
 	if err != nil {
@@ -95,7 +95,7 @@ func ShowTV(context telebot.Context, tvData *TV) error {
 		return context.Send("Something went wrong while checking your watchlist.")
 	}
 
-	replyMarkup := generateReplyMarkup(tvData.ID, len(watchlist) > 0)
+	replyMarkup := generateReplyMarkup(tvData.ID, len(watchlist) > 0, isTVShow)
 
 	// Delete the original context message
 	if err = context.Delete(); err != nil {
@@ -119,10 +119,16 @@ func ShowTV(context telebot.Context, tvData *TV) error {
 }
 
 // generateReplyMarkup generates inline keyboard buttons for the TV show.
-func generateReplyMarkup(TVID int64, isWatchlisted bool) *telebot.ReplyMarkup {
+func generateReplyMarkup(TVID int64, isWatchlisted bool, isTVShow bool) *telebot.ReplyMarkup {
 	btn := &telebot.ReplyMarkup{}
 
-	backButton := btn.Data("🔙 Back to list", "tv|back_to_pagination|")
+	var backButton telebot.Btn
+
+	if isTVShow {
+		backButton = btn.Data("🔙 Back to list", "tv|back_to_pagination|")
+	} else {
+		backButton = btn.Data("🔙 Back to list", fmt.Sprintf("watchlist|back_to_pagination|%s", models.TVShowType))
+	}
 	watchlistButton := btn.Data(
 		"🌟 Watchlist", fmt.Sprintf("tv|watchlist|%v", TVID),
 	)

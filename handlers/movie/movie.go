@@ -81,7 +81,7 @@ func (h *movieHandler) handleMovieDetails(context telebot.Context, data string) 
 		return err
 	}
 
-	err = movie.ShowMovie(context, movieData)
+	err = movie.ShowMovie(context, movieData, true)
 	if err != nil {
 		log.Print(err)
 		return err

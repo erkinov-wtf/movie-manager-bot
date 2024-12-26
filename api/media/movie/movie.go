@@ -41,7 +41,7 @@ func GetMovie(movieId int) (*Movie, error) {
 }
 
 // ShowMovie displays movie details along with an image and interactive buttons.
-func ShowMovie(context telebot.Context, movieData *Movie) error {
+func ShowMovie(context telebot.Context, movieData *Movie, isMovie bool) error {
 	// Retrieve movie poster image
 	imgBuffer, err := image.GetImage(movieData.PosterPath)
 	if err != nil {
@@ -76,7 +76,7 @@ func ShowMovie(context telebot.Context, movieData *Movie) error {
 		return context.Send("Something went wrong while checking your watchlist.")
 	}
 
-	replyMarkup := generateReplyMarkup(movieData.ID, len(watchlist) > 0)
+	replyMarkup := generateReplyMarkup(movieData.ID, len(watchlist) > 0, isMovie)
 
 	// Delete the original context message
 	if err = context.Delete(); err != nil {
@@ -100,10 +100,16 @@ func ShowMovie(context telebot.Context, movieData *Movie) error {
 }
 
 // generateReplyMarkup generates inline keyboard buttons for the movie.
-func generateReplyMarkup(movieID int64, isWatchlisted bool) *telebot.ReplyMarkup {
+func generateReplyMarkup(movieID int64, isWatchlisted bool, isMovie bool) *telebot.ReplyMarkup {
 	btn := &telebot.ReplyMarkup{}
 
-	backButton := btn.Data("🔙 Back to list", "movie|back_to_pagination|")
+	var backButton telebot.Btn
+	if isMovie {
+		backButton = btn.Data("🔙 Back to list", "movie|back_to_pagination|")
+	} else {
+		backButton = btn.Data("🔙 Back to list", fmt.Sprintf("watchlist|back_to_pagination|%s", models.MovieType))
+	}
+
 	watchlistButton := btn.Data(
 		"🌟 Watchlist", fmt.Sprintf("movie|watchlist|%v", movieID),
 	)

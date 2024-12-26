@@ -174,7 +174,7 @@ func (h *watchlistHandler) handleWatchlistInfo(context telebot.Context, data str
 			return err
 		}
 
-		err = movie.ShowMovie(context, movieData)
+		err = movie.ShowMovie(context, movieData, false)
 		if err != nil {
 			log.Print(err)
 			return err
@@ -188,7 +188,7 @@ func (h *watchlistHandler) handleWatchlistInfo(context telebot.Context, data str
 			return err
 		}
 
-		err = tv.ShowTV(context, tvData)
+		err = tv.ShowTV(context, tvData, false)
 		if err != nil {
 			log.Print(err)
 			return err
@@ -196,6 +196,43 @@ func (h *watchlistHandler) handleWatchlistInfo(context telebot.Context, data str
 
 		return context.Respond(&telebot.CallbackResponse{Text: "You found the tv!"})
 	}
+}
+
+func (h *watchlistHandler) handleBackToPagination(context telebot.Context, showType string) error {
+	currentPage := 1
+
+	var watchlist []models.Watchlist
+	if showType == string(models.AllType) {
+		if err := database.DB.Where("user_id = ?", context.Sender().ID).Find(&watchlist).Error; err != nil {
+			log.Print(err)
+			return context.Send("Something went wrong")
+		}
+	} else {
+		if err := database.DB.Where("user_id = ? AND type = ?", context.Sender().ID, showType).Find(&watchlist).Error; err != nil {
+			log.Print(err)
+			return context.Send("Something went wrong")
+		}
+	}
+
+	totalItems := len(watchlist)
+	totalPages := (totalItems + itemsPerPage - 1) / itemsPerPage
+
+	paginatedWatchlist := helpers.PaginateWatchlist(watchlist, currentPage)
+	response, btn := helpers.GenerateWatchlistResponse(&paginatedWatchlist, currentPage, totalPages, totalItems, showType)
+
+	// Delete the movie/show details message
+	if err := context.Delete(); err != nil {
+		log.Printf("Failed to delete message: %v", err)
+	}
+
+	// Send new message with watchlist
+	_, err := context.Bot().Send(context.Chat(), response, btn, telebot.ModeMarkdown)
+	if err != nil {
+		log.Printf("Failed to send watchlist: %v", err)
+		return err
+	}
+
+	return nil
 }
 
 func (h *watchlistHandler) WatchlistCallback(context telebot.Context) error {
@@ -279,6 +316,9 @@ func (h *watchlistHandler) WatchlistCallback(context telebot.Context) error {
 		}
 
 		return context.Respond(&telebot.CallbackResponse{Text: "Page updated!"})
+
+	case "back_to_pagination":
+		return h.handleBackToPagination(context, data)
 
 	default:
 		return context.Respond(&telebot.CallbackResponse{Text: "Unknown action"})

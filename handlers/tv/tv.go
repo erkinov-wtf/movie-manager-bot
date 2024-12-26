@@ -92,7 +92,7 @@ func (h *tvHandler) handleTVDetails(context telebot.Context, data string) error 
 		return err
 	}
 
-	err = tv.ShowTV(context, tvData)
+	err = tv.ShowTV(context, tvData, true)
 	if err != nil {
 		log.Print(err)
 		return err
