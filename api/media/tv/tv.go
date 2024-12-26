@@ -11,8 +11,9 @@ import (
 	"movie-manager-bot/api/media/image"
 	"movie-manager-bot/config"
 	"movie-manager-bot/helpers/utils"
+	"movie-manager-bot/models"
+	"movie-manager-bot/storage/database"
 	"net/http"
-	"time"
 )
 
 func GetTV(tvId int) (*TV, error) {
@@ -61,28 +62,23 @@ func GetSeason(tvId, seasonNumber int) (*Season, error) {
 	return &result, nil
 }
 
-func ShowTV(context telebot.Context, tvData *TV) error {
-	imageChan := make(chan *bytes.Buffer, 1)
-	errChan := make(chan error, 1)
+func ShowTV(context telebot.Context, tvData *TV, isTVShow bool) error {
+	// Retrieve TV poster image
+	imgBuffer, err := image.GetImage(tvData.PosterPath)
+	if err != nil {
+		log.Printf("Error retrieving image: %v", err)
+		return fmt.Errorf("could not retrieve image: %w", err)
+	}
 
-	// Fetch image concurrently
-	go func() {
-		imgBuffer, err := image.GetImage(tvData.PosterPath)
-		if err != nil {
-			errChan <- fmt.Errorf("could not retrieve image: %w", err)
-			return
-		}
-		imageChan <- imgBuffer
-	}()
-
+	// Prepare TV details caption
 	caption := fmt.Sprintf(
-		"📺 *Name*: %v\n"+
-			"📝 *Overview*: %v\n"+
-			"📜 *Status*: %v\n"+
-			"🔞 *Is Adult*: %v\n"+
-			"🔥 *Popularity*: %v\n"+
-			"🎥 *Seasons*: %v\n"+
-			"#️⃣ *Episodes*: %v\n\n",
+		"📺 *Name*: %v\n\n"+
+			"📝 *Overview*: %v\n\n"+
+			"📜 *Status*: %v\n\n"+
+			"🔞 *Is Adult*: %v\n\n"+
+			"🔥 *Popularity*: %.2f\n\n"+
+			"🎥 *Seasons*: %v\n\n"+
+			"#️⃣ *Episodes*: %v\n",
 		tvData.Name,
 		tvData.Overview,
 		tvData.Status,
@@ -92,45 +88,68 @@ func ShowTV(context telebot.Context, tvData *TV) error {
 		tvData.Episodes,
 	)
 
-	backBtn := &telebot.ReplyMarkup{}
-	backBtn.Inline(
-		backBtn.Row(backBtn.Data("🔙 Back to list", "tv|back_to_pagination|")),
-		backBtn.Row(backBtn.Data("📋 Watchlist", "tv|watchlist|"), backBtn.Data("✅ Watched", fmt.Sprintf("tv|select_seasons|%v", tvData.ID))),
-	)
+	// Check if the movie is already in the user's watchlist
+	var watchlist []models.Watchlist
+	if err = database.DB.Where("show_api_id = ? AND user_id = ?", tvData.ID, context.Sender().ID).Find(&watchlist).Error; err != nil {
+		log.Printf("Database error: %v", err)
+		return context.Send("Something went wrong while checking your watchlist.")
+	}
 
-	err := context.Delete()
-	if err != nil {
+	replyMarkup := generateReplyMarkup(tvData.ID, len(watchlist) > 0, isTVShow)
+
+	// Delete the original context message
+	if err = context.Delete(); err != nil {
 		log.Printf("Failed to delete original message: %v", err)
 	}
 
-	// Wait for image or error
-	var imgBuffer *bytes.Buffer
-	select {
-	case img := <-imageChan:
-		imgBuffer = img
-	case err := <-errChan:
-		log.Printf("Image retrieval error: %v", err)
-		// Send message without image if retrieval fails
-		_, sendErr := context.Bot().Send(context.Chat(), caption, backBtn, telebot.ModeMarkdown)
-		return sendErr
-	case <-time.After(10 * time.Second):
-		log.Printf("Image retrieval timeout for TV ID: %d", tvData.ID)
-		// Send message without image if retrieval times out
-		_, sendErr := context.Bot().Send(context.Chat(), caption, backBtn, telebot.ModeMarkdown)
-		return sendErr
-	}
-
+	// Send the TV details with poster and buttons
 	imageFile := &telebot.Photo{
 		File:    telebot.File{FileReader: bytes.NewReader(imgBuffer.Bytes())},
 		Caption: caption,
 	}
 
-	_, err = context.Bot().Send(context.Chat(), imageFile, backBtn, telebot.ModeMarkdown)
+	_, err = context.Bot().Send(context.Chat(), imageFile, replyMarkup, telebot.ModeMarkdown)
 	if err != nil {
-		log.Printf("Failed to send tv details: %v", err)
-		return fmt.Errorf("could not send tv details: %w", err)
+		log.Printf("Failed to send TV details: %v", err)
+		return fmt.Errorf("could not send TV details: %w", err)
 	}
 
-	log.Printf("Tv details successfully sent for tv ID: %d", tvData.ID)
+	log.Printf("TV details sent successfully for TV ID: %d", tvData.ID)
 	return nil
+}
+
+// generateReplyMarkup generates inline keyboard buttons for the TV show.
+func generateReplyMarkup(TVID int64, isWatchlisted bool, isTVShow bool) *telebot.ReplyMarkup {
+	btn := &telebot.ReplyMarkup{}
+
+	var backButton telebot.Btn
+
+	if isTVShow {
+		backButton = btn.Data("🔙 Back to list", "tv|back_to_pagination|")
+	} else {
+		backButton = btn.Data("🔙 Back to list", fmt.Sprintf("watchlist|back_to_pagination|%s", models.TVShowType))
+	}
+	watchlistButton := btn.Data(
+		"🌟 Watchlist", fmt.Sprintf("tv|watchlist|%v", TVID),
+	)
+	watchlistedButton := btn.Data(
+		"📌 Watchlisted", fmt.Sprintf("", TVID),
+	)
+	watchedButton := btn.Data(
+		"👀 Watched", fmt.Sprintf("tv|select_seasons|%v", TVID),
+	)
+
+	if isWatchlisted {
+		btn.Inline(
+			btn.Row(backButton),
+			btn.Row(watchlistedButton, watchedButton),
+		)
+	} else {
+		btn.Inline(
+			btn.Row(backButton),
+			btn.Row(watchlistButton, watchedButton),
+		)
+	}
+
+	return btn
 }

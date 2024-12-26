@@ -29,7 +29,7 @@ func DBConnect() {
 
 	log.Print("DB connected successfully")
 
-	err = DB.AutoMigrate(&models.Movie{}, &models.TVShows{}, &models.User{})
+	err = DB.AutoMigrate(&models.Movie{}, &models.TVShows{}, &models.User{}, &models.Watchlist{})
 	if err != nil {
 		panic(err)
 	}

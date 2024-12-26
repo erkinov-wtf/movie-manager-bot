@@ -81,7 +81,7 @@ func (h *movieHandler) handleMovieDetails(context telebot.Context, data string) 
 		return err
 	}
 
-	err = movie.ShowMovie(context, movieData)
+	err = movie.ShowMovie(context, movieData, true)
 	if err != nil {
 		log.Print(err)
 		return err
@@ -91,6 +91,18 @@ func (h *movieHandler) handleMovieDetails(context telebot.Context, data string) 
 }
 
 func (h *movieHandler) handleWatchedDetails(context telebot.Context, movieIdStr string) error {
+	tx := database.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	if err := tx.Error; err != nil {
+		log.Print(err)
+		return context.Send("Something went wrong")
+	}
+
 	movieId, err := strconv.Atoi(movieIdStr)
 	if err != nil {
 		log.Print(err)
@@ -98,7 +110,7 @@ func (h *movieHandler) handleWatchedDetails(context telebot.Context, movieIdStr 
 	}
 
 	var existingMovie models.Movie
-	result := database.DB.Where("api_id = ? AND user_id = ?", movieId, context.Sender().ID).First(&existingMovie)
+	result := tx.Where("api_id = ? AND user_id = ?", movieId, context.Sender().ID).First(&existingMovie)
 	if result.Error == nil {
 		// Movie already exists in watched list
 		log.Printf("user has watched the movie: %v", existingMovie)
@@ -123,12 +135,54 @@ func (h *movieHandler) handleWatchedDetails(context telebot.Context, movieIdStr 
 		Runtime: movieData.Runtime,
 	}
 
-	if err = database.DB.Create(&newMovie).Error; err != nil {
+	if err = tx.Create(&newMovie).Error; err != nil {
 		log.Printf("cant create new movie: %v", err.Error())
 		return err
 	}
 
+	if err = tx.Where("show_api_id = ? AND user_id = ?", movieId, context.Sender().ID).Delete(&models.Watchlist{}).Error; err != nil {
+		log.Print(err)
+		return context.Send("Something went wrong")
+	}
+
+	tx.Commit()
+
 	_, err = context.Bot().Send(context.Chat(), fmt.Sprintf("The Movie as watched with below data:\nDuration: *%d minutes*", movieData.Runtime), telebot.ModeMarkdown)
+	if err != nil {
+		log.Print(err)
+		return err
+	}
+
+	return nil
+}
+
+func (h *movieHandler) handleWatchlist(context telebot.Context, data string) error {
+	movieId, err := strconv.Atoi(data)
+	if err != nil {
+		log.Print(err)
+		return context.Send("Invalid movie number.")
+	}
+
+	movieData, err := movie.GetMovie(movieId)
+	if err != nil {
+		log.Print(err)
+		return nil
+	}
+
+	newWatchlist := models.Watchlist{
+		UserID:    context.Sender().ID,
+		ShowApiId: movieData.ID,
+		Type:      models.MovieType,
+		Title:     movieData.Title,
+		Image:     movieData.PosterPath,
+	}
+
+	if err = database.DB.Create(&newWatchlist).Error; err != nil {
+		log.Print(err)
+		return context.Send("Something went wrong")
+	}
+
+	_, err = context.Bot().Send(context.Chat(), "Movie added to Watchlist", telebot.ModeMarkdown)
 	if err != nil {
 		log.Print(err)
 		return err
@@ -226,14 +280,22 @@ func (h *movieHandler) MovieCallback(context telebot.Context) error {
 	switch action {
 	case "movie":
 		return h.handleMovieDetails(context, data)
+
 	case "watched":
 		return h.handleWatchedDetails(context, data)
+
+	case "watchlist":
+		return h.handleWatchlist(context, data)
+
 	case "back_to_pagination":
 		return h.handleBackToPagination(context)
+
 	case "next":
 		return h.handleNextPage(context)
+
 	case "prev":
 		return h.handlePrevPage(context)
+
 	default:
 		return context.Respond(&telebot.CallbackResponse{Text: "Unknown action"})
 	}

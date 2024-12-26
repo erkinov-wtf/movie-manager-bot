@@ -219,10 +219,13 @@ func (i *infoHandler) InfoCallback(context telebot.Context) error {
 	switch action {
 	case "movie_info":
 		return i.handleMovieDetails(context, data)
+
 	case "tv_info":
 		return i.handleTVDetails(context, data)
+
 	case "full_info":
 		return i.handleFullDetails(context, data)
+
 	default:
 		return context.Respond(&telebot.CallbackResponse{Text: "Unknown action"})
 	}

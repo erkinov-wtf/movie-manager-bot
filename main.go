@@ -34,6 +34,7 @@ func main() {
 	commands.SetupMovieRoutes(bot, container)
 	commands.SetupTVRoutes(bot, container)
 	commands.SetupInfoRoutes(bot, container)
+	commands.SetupWatchlistRoutes(bot, container)
 
 	log.Print("starting bot...")
 	bot.Start()

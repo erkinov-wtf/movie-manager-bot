@@ -56,6 +56,10 @@ func SetupInfoRoutes(bot *telebot.Bot, container *dependencyInjection.Container)
 	bot.Handle("/info", middleware.RequireRegistration(container.InfoHandler.Info))
 }
 
+func SetupWatchlistRoutes(bot *telebot.Bot, container *dependencyInjection.Container) {
+	bot.Handle("/w", middleware.RequireRegistration(container.WatchlistHandler.WatchlistInfo))
+}
+
 func handleCallback(container *dependencyInjection.Container) func(c telebot.Context) error {
 	return func(c telebot.Context) error {
 		trimmed := strings.TrimSpace(c.Callback().Data)
@@ -72,6 +76,9 @@ func handleCallback(container *dependencyInjection.Container) func(c telebot.Con
 
 		case strings.HasPrefix(trimmed, "default|"):
 			return container.DefaultHandler.DefaultCallback(c)
+
+		case strings.HasPrefix(trimmed, "watchlist|"):
+			return container.WatchlistHandler.WatchlistCallback(c)
 
 		default:
 			return c.Respond(&telebot.CallbackResponse{Text: "Unknown callback type"})
