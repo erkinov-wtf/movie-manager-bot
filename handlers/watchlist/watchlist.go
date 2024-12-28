@@ -7,6 +7,7 @@ import (
 	"movie-manager-bot/api/media/movie"
 	"movie-manager-bot/api/media/tv"
 	"movie-manager-bot/helpers"
+	"movie-manager-bot/helpers/messages"
 	"movie-manager-bot/models"
 	"movie-manager-bot/storage/database"
 	"strconv"
@@ -14,12 +15,12 @@ import (
 )
 
 func (*watchlistHandler) WatchlistInfo(context telebot.Context) error {
-	log.Print("/w command received")
+	log.Print(messages.WatchlistCommand)
 
-	msg, err := context.Bot().Send(context.Chat(), "Loading...")
+	msg, err := context.Bot().Send(context.Chat(), messages.Loading)
 	if err != nil {
 		log.Print(err)
-		return err
+		return context.Send(messages.InternalError)
 	}
 
 	btn := &telebot.ReplyMarkup{}
@@ -31,10 +32,10 @@ func (*watchlistHandler) WatchlistInfo(context telebot.Context) error {
 
 	btn.Inline(btnRows...)
 
-	_, err = context.Bot().Edit(msg, "Which type of watchlist do you want?", btn)
+	_, err = context.Bot().Edit(msg, messages.WatchlistSelectType, btn)
 	if err != nil {
 		log.Print(err)
-		return err
+		return context.Send(messages.InternalError)
 	}
 
 	return nil
@@ -48,15 +49,15 @@ func (h *watchlistHandler) handleTVWatchlist(context telebot.Context, msgId stri
 
 	if err := database.DB.Where("user_id = ? AND type = ?", context.Sender().ID, models.TVShowType).Find(&watchlist).Error; err != nil {
 		log.Print(err)
-		return context.Send("Something went wrong")
+		return context.Send(messages.InternalError)
 	}
 
 	if len(watchlist) == 0 {
 		log.Print("No records found")
-		_, err := context.Bot().Edit(msg, "No records found", telebot.ModeMarkdown)
+		_, err := context.Bot().Edit(msg, messages.NoWatchlistData, telebot.ModeMarkdown)
 		if err != nil {
 			log.Print(err)
-			return err
+			return context.Send(messages.InternalError)
 		}
 		return nil
 	}
@@ -71,7 +72,7 @@ func (h *watchlistHandler) handleTVWatchlist(context telebot.Context, msgId stri
 	_, err := context.Bot().Edit(msg, response, btn, telebot.ModeMarkdown)
 	if err != nil {
 		log.Print(err)
-		return err
+		return context.Send(messages.InternalError)
 	}
 
 	return nil
@@ -85,15 +86,15 @@ func (h *watchlistHandler) handleMovieWatchlist(context telebot.Context, msgId s
 
 	if err := database.DB.Where("user_id = ? AND type = ?", context.Sender().ID, models.MovieType).Find(&watchlist).Error; err != nil {
 		log.Print(err)
-		return context.Send("Something went wrong")
+		return context.Send(messages.InternalError)
 	}
 
 	if len(watchlist) == 0 {
 		log.Print("No records found")
-		_, err := context.Bot().Edit(msg, "No records found", telebot.ModeMarkdown)
+		_, err := context.Bot().Edit(msg, messages.NoWatchlistData, telebot.ModeMarkdown)
 		if err != nil {
 			log.Print(err)
-			return err
+			return context.Send(messages.InternalError)
 		}
 		return nil
 	}
@@ -108,7 +109,7 @@ func (h *watchlistHandler) handleMovieWatchlist(context telebot.Context, msgId s
 	_, err := context.Bot().Edit(msg, response, btn, telebot.ModeMarkdown)
 	if err != nil {
 		log.Print(err)
-		return err
+		return context.Send(messages.InternalError)
 	}
 
 	return nil
@@ -122,15 +123,15 @@ func (h *watchlistHandler) handleFullWatchlist(context telebot.Context, msgId st
 
 	if err := database.DB.Where("user_id = ?", context.Sender().ID).Find(&watchlist).Error; err != nil {
 		log.Print(err)
-		return context.Send("Something went wrong")
+		return context.Send(messages.InternalError)
 	}
 
 	if len(watchlist) == 0 {
 		log.Print("No records found")
-		_, err := context.Bot().Edit(msg, "No records found", telebot.ModeMarkdown)
+		_, err := context.Bot().Edit(msg, messages.NoWatchlistData, telebot.ModeMarkdown)
 		if err != nil {
 			log.Print(err)
-			return err
+			return context.Send(messages.InternalError)
 		}
 		return nil
 	}
@@ -145,7 +146,7 @@ func (h *watchlistHandler) handleFullWatchlist(context telebot.Context, msgId st
 	_, err := context.Bot().Edit(msg, response, btn, telebot.ModeMarkdown)
 	if err != nil {
 		log.Print(err)
-		return err
+		return context.Send(messages.InternalError)
 	}
 
 	return nil
@@ -155,7 +156,7 @@ func (h *watchlistHandler) handleWatchlistInfo(context telebot.Context, data str
 	dataParts := strings.Split(data, "-")
 	if len(dataParts) < 2 {
 		log.Printf("Received malformed callback data for waitlist: %s", data)
-		return context.Respond(&telebot.CallbackResponse{Text: "Malformed data received"})
+		return context.Respond(&telebot.CallbackResponse{Text: messages.MalformedData})
 	}
 
 	movieType := dataParts[0]
@@ -164,23 +165,23 @@ func (h *watchlistHandler) handleWatchlistInfo(context telebot.Context, data str
 	parsedId, err := strconv.Atoi(movieId)
 	if err != nil {
 		log.Print(err)
-		return err
+		return context.Send(messages.InternalError)
 	}
 
 	if movieType == string(models.MovieType) {
 		movieData, err := movie.GetMovie(parsedId)
 		if err != nil {
 			log.Print(err)
-			return err
+			return context.Send(messages.InternalError)
 		}
 
 		err = movie.ShowMovie(context, movieData, false)
 		if err != nil {
 			log.Print(err)
-			return err
+			return context.Send(messages.InternalError)
 		}
 
-		return context.Respond(&telebot.CallbackResponse{Text: "You found the movie!"})
+		return context.Respond(&telebot.CallbackResponse{Text: messages.MovieSelected})
 	} else {
 		tvData, err := tv.GetTV(parsedId)
 		if err != nil {
@@ -194,7 +195,7 @@ func (h *watchlistHandler) handleWatchlistInfo(context telebot.Context, data str
 			return err
 		}
 
-		return context.Respond(&telebot.CallbackResponse{Text: "You found the tv!"})
+		return context.Respond(&telebot.CallbackResponse{Text: messages.TVShowSelected})
 	}
 }
 
@@ -205,12 +206,12 @@ func (h *watchlistHandler) handleBackToPagination(context telebot.Context, showT
 	if showType == string(models.AllType) {
 		if err := database.DB.Where("user_id = ?", context.Sender().ID).Find(&watchlist).Error; err != nil {
 			log.Print(err)
-			return context.Send("Something went wrong")
+			return context.Send(messages.InternalError)
 		}
 	} else {
 		if err := database.DB.Where("user_id = ? AND type = ?", context.Sender().ID, showType).Find(&watchlist).Error; err != nil {
 			log.Print(err)
-			return context.Send("Something went wrong")
+			return context.Send(messages.InternalError)
 		}
 	}
 
@@ -223,13 +224,14 @@ func (h *watchlistHandler) handleBackToPagination(context telebot.Context, showT
 	// Delete the movie/show details message
 	if err := context.Delete(); err != nil {
 		log.Printf("Failed to delete message: %v", err)
+		return context.Send(messages.InternalError)
 	}
 
 	// Send new message with watchlist
 	_, err := context.Bot().Send(context.Chat(), response, btn, telebot.ModeMarkdown)
 	if err != nil {
 		log.Printf("Failed to send watchlist: %v", err)
-		return err
+		return context.Send(messages.InternalError)
 	}
 
 	return nil
@@ -241,13 +243,13 @@ func (h *watchlistHandler) WatchlistCallback(context telebot.Context) error {
 	log.Printf("Callback data: %s", trimmed)
 
 	if !strings.HasPrefix(trimmed, "watchlist|") {
-		return nil
+		return context.Send(messages.InternalError)
 	}
 
 	dataParts := strings.Split(trimmed, "|")
 	if len(dataParts) < 3 {
 		log.Printf("Received malformed callback data: %s", callback.Data)
-		return context.Respond(&telebot.CallbackResponse{Text: "Malformed data received"})
+		return context.Respond(&telebot.CallbackResponse{Text: messages.MalformedData})
 	}
 
 	action := dataParts[1]
@@ -270,14 +272,14 @@ func (h *watchlistHandler) WatchlistCallback(context telebot.Context) error {
 		paginationData := strings.Split(data, "-")
 		if len(paginationData) != 2 {
 			log.Printf("Received malformed callback data for watchlist pagination: %s", data)
-			return context.Respond(&telebot.CallbackResponse{Text: "Malformed data received"})
+			return context.Respond(&telebot.CallbackResponse{Text: messages.MalformedData})
 		}
 
 		watchlistType := paginationData[0]
 		currentPage, err := strconv.Atoi(paginationData[1])
 		if err != nil {
 			log.Printf("Invalid page number: %v", err)
-			return context.Respond(&telebot.CallbackResponse{Text: "Invalid page number"})
+			return context.Respond(&telebot.CallbackResponse{Text: messages.InvalidPageNumber})
 		}
 
 		var watchlist []models.Watchlist
@@ -285,12 +287,12 @@ func (h *watchlistHandler) WatchlistCallback(context telebot.Context) error {
 		if watchlistType == string(models.AllType) {
 			if err = database.DB.Where("user_id = ?", context.Sender().ID).Find(&watchlist).Error; err != nil {
 				log.Print(err)
-				return context.Send("Something went wrong")
+				return context.Send(messages.InternalError)
 			}
 		} else {
 			if err = database.DB.Where("user_id = ? AND type = ?", context.Sender().ID, watchlistType).Find(&watchlist).Error; err != nil {
 				log.Print(err)
-				return context.Send("Something went wrong")
+				return context.Send(messages.InternalError)
 			}
 		}
 
@@ -310,17 +312,17 @@ func (h *watchlistHandler) WatchlistCallback(context telebot.Context) error {
 		if err != nil {
 			log.Printf("Edit error: %v", err)
 			if strings.Contains(err.Error(), "message is not modified") {
-				return context.Respond(&telebot.CallbackResponse{Text: "No changes to display"})
+				return context.Respond(&telebot.CallbackResponse{Text: messages.NoChanges})
 			}
-			return err
+			return context.Send(messages.InternalError)
 		}
 
-		return context.Respond(&telebot.CallbackResponse{Text: "Page updated!"})
+		return context.Respond(&telebot.CallbackResponse{Text: messages.PageUpdated})
 
 	case "back_to_pagination":
 		return h.handleBackToPagination(context, data)
 
 	default:
-		return context.Respond(&telebot.CallbackResponse{Text: "Unknown action"})
+		return context.Respond(&telebot.CallbackResponse{Text: messages.UnknownAction})
 	}
 }

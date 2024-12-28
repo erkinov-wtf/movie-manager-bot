@@ -9,6 +9,7 @@ import (
 	"movie-manager-bot/api/media/movie"
 	"movie-manager-bot/api/media/search"
 	"movie-manager-bot/helpers"
+	"movie-manager-bot/helpers/messages"
 	"movie-manager-bot/models"
 	"movie-manager-bot/storage/cache"
 	"movie-manager-bot/storage/database"
@@ -24,10 +25,11 @@ var (
 )
 
 func (*movieHandler) SearchMovie(context telebot.Context) error {
+	log.Print(messages.MovieCommand)
 	userID := context.Sender().ID
 
 	if context.Message().Payload == "" {
-		return context.Send("After /sm, a movie title must be provided")
+		return context.Send(messages.MovieEmptyPayload)
 	}
 
 	msg, err := context.Bot().Send(context.Chat(), fmt.Sprintf("Looking for *%v*...", context.Message().Payload), telebot.ModeMarkdown)
@@ -87,7 +89,7 @@ func (h *movieHandler) handleMovieDetails(context telebot.Context, data string) 
 		return err
 	}
 
-	return context.Respond(&telebot.CallbackResponse{Text: "You found the movie!"})
+	return context.Respond(&telebot.CallbackResponse{Text: messages.MovieSelected})
 }
 
 func (h *movieHandler) handleWatchedDetails(context telebot.Context, movieIdStr string) error {
@@ -100,13 +102,13 @@ func (h *movieHandler) handleWatchedDetails(context telebot.Context, movieIdStr 
 
 	if err := tx.Error; err != nil {
 		log.Print(err)
-		return context.Send("Something went wrong")
+		return context.Send(messages.InternalError)
 	}
 
 	movieId, err := strconv.Atoi(movieIdStr)
 	if err != nil {
 		log.Print(err)
-		return context.Send("Invalid movie id")
+		return context.Send(messages.InternalError)
 	}
 
 	var existingMovie models.Movie
@@ -114,8 +116,7 @@ func (h *movieHandler) handleWatchedDetails(context telebot.Context, movieIdStr 
 	if result.Error == nil {
 		// Movie already exists in watched list
 		log.Printf("user has watched the movie: %v", existingMovie)
-		context.Send("You have already watched this movie")
-		return nil
+		return context.Send(messages.WatchedMovie)
 	}
 	if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		log.Printf("Database error: %v", result.Error)
@@ -125,7 +126,7 @@ func (h *movieHandler) handleWatchedDetails(context telebot.Context, movieIdStr 
 	movieData, err := movie.GetMovie(movieId)
 	if err != nil {
 		log.Printf("couldnt retrive movie from api: %v", err.Error())
-		return err
+		return context.Send(messages.InternalError)
 	}
 
 	newMovie := models.Movie{
@@ -137,12 +138,12 @@ func (h *movieHandler) handleWatchedDetails(context telebot.Context, movieIdStr 
 
 	if err = tx.Create(&newMovie).Error; err != nil {
 		log.Printf("cant create new movie: %v", err.Error())
-		return err
+		return context.Send(messages.WatchedMovie)
 	}
 
 	if err = tx.Where("show_api_id = ? AND user_id = ?", movieId, context.Sender().ID).Delete(&models.Watchlist{}).Error; err != nil {
 		log.Print(err)
-		return context.Send("Something went wrong")
+		return context.Send(messages.WatchedMovie)
 	}
 
 	tx.Commit()
@@ -160,13 +161,13 @@ func (h *movieHandler) handleWatchlist(context telebot.Context, data string) err
 	movieId, err := strconv.Atoi(data)
 	if err != nil {
 		log.Print(err)
-		return context.Send("Invalid movie number.")
+		return context.Send(messages.WatchedMovie)
 	}
 
 	movieData, err := movie.GetMovie(movieId)
 	if err != nil {
 		log.Print(err)
-		return nil
+		return context.Send(messages.WatchedMovie)
 	}
 
 	newWatchlist := models.Watchlist{
@@ -179,13 +180,13 @@ func (h *movieHandler) handleWatchlist(context telebot.Context, data string) err
 
 	if err = database.DB.Create(&newWatchlist).Error; err != nil {
 		log.Print(err)
-		return context.Send("Something went wrong")
+		return context.Send(messages.WatchedMovie)
 	}
 
 	_, err = context.Bot().Send(context.Chat(), "Movie added to Watchlist", telebot.ModeMarkdown)
 	if err != nil {
 		log.Print(err)
-		return err
+		return context.Send(messages.WatchedMovie)
 	}
 
 	return nil
@@ -195,12 +196,13 @@ func (h *movieHandler) handleBackToPagination(context telebot.Context) error {
 	userID := context.Sender().ID
 
 	if _, ok := moviesCache[userID]; !ok {
-		return context.Respond(&telebot.CallbackResponse{Text: "No search results to return to"})
+		return context.Respond(&telebot.CallbackResponse{Text: messages.NoSearchResult})
 	}
 
 	// Delete the current movie details message
 	if err := context.Delete(); err != nil {
 		log.Printf("Failed to delete movie details message: %v", err)
+		return context.Send(messages.InternalError)
 	}
 
 	// Paginate and send updated movie list
@@ -209,17 +211,17 @@ func (h *movieHandler) handleBackToPagination(context telebot.Context) error {
 	_, err := context.Bot().Send(context.Chat(), response, btn, telebot.ModeMarkdown)
 	if err != nil {
 		log.Printf("Failed to return to paginated results: %v", err)
-		return err
+		return context.Send(messages.InternalError)
 	}
 
-	return context.Respond(&telebot.CallbackResponse{Text: "Returning to search results"})
+	return context.Respond(&telebot.CallbackResponse{Text: messages.BackToSearchResults})
 }
 
 func (h *movieHandler) handleNextPage(context telebot.Context) error {
 	userID := context.Sender().ID
 
 	if _, ok := moviesCache[userID]; !ok {
-		return context.Respond(&telebot.CallbackResponse{Text: "No search results found"})
+		return context.Respond(&telebot.CallbackResponse{Text: messages.NoSearchResult})
 	}
 
 	*pagePointer[userID]++
@@ -235,7 +237,7 @@ func (h *movieHandler) handlePrevPage(context telebot.Context) error {
 	userID := context.Sender().ID
 
 	if _, ok := moviesCache[userID]; !ok {
-		return context.Respond(&telebot.CallbackResponse{Text: "No search results found"})
+		return context.Respond(&telebot.CallbackResponse{Text: messages.NoSearchResult})
 	}
 
 	// Update page pointer
@@ -254,7 +256,7 @@ func updateMovieMessage(context telebot.Context, paginatedMovies []movie.Movie, 
 	_, err := context.Bot().Edit(context.Message(), response, btn, telebot.ModeMarkdown)
 	if err != nil {
 		log.Printf("Failed to update movie message: %v", err)
-		return err
+		return context.Send(messages.InternalError)
 	}
 
 	return nil
@@ -271,7 +273,7 @@ func (h *movieHandler) MovieCallback(context telebot.Context) error {
 	dataParts := strings.Split(trimmed, "|")
 	if len(dataParts) != 3 {
 		log.Printf("Received malformed callback data: %s", callback.Data)
-		return context.Respond(&telebot.CallbackResponse{Text: "Malformed data received"})
+		return context.Respond(&telebot.CallbackResponse{Text: messages.MalformedData})
 	}
 
 	action := dataParts[1]
@@ -297,6 +299,6 @@ func (h *movieHandler) MovieCallback(context telebot.Context) error {
 		return h.handlePrevPage(context)
 
 	default:
-		return context.Respond(&telebot.CallbackResponse{Text: "Unknown action"})
+		return context.Respond(&telebot.CallbackResponse{Text: messages.UnknownAction})
 	}
 }

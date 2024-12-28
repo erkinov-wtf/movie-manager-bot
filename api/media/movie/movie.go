@@ -10,6 +10,7 @@ import (
 	"movie-manager-bot/api"
 	"movie-manager-bot/api/media/image"
 	"movie-manager-bot/config"
+	"movie-manager-bot/helpers/messages"
 	"movie-manager-bot/helpers/utils"
 	"movie-manager-bot/models"
 	"movie-manager-bot/storage/database"
@@ -46,7 +47,7 @@ func ShowMovie(context telebot.Context, movieData *Movie, isMovie bool) error {
 	imgBuffer, err := image.GetImage(movieData.PosterPath)
 	if err != nil {
 		log.Printf("Error retrieving image: %v", err)
-		return fmt.Errorf("could not retrieve image: %w", err)
+		return context.Send(messages.InternalError)
 	}
 
 	// Prepare movie details caption
@@ -73,7 +74,7 @@ func ShowMovie(context telebot.Context, movieData *Movie, isMovie bool) error {
 	var watchlist []models.Watchlist
 	if err = database.DB.Where("show_api_id = ? AND user_id = ?", movieData.ID, context.Sender().ID).Find(&watchlist).Error; err != nil {
 		log.Printf("Database error: %v", err)
-		return context.Send("Something went wrong while checking your watchlist.")
+		return context.Send(messages.WatchlistCheckError)
 	}
 
 	replyMarkup := generateReplyMarkup(movieData.ID, len(watchlist) > 0, isMovie)
@@ -81,6 +82,7 @@ func ShowMovie(context telebot.Context, movieData *Movie, isMovie bool) error {
 	// Delete the original context message
 	if err = context.Delete(); err != nil {
 		log.Printf("Failed to delete original message: %v", err)
+		return context.Send(messages.InternalError)
 	}
 
 	// Send the movie details with poster and buttons
@@ -92,7 +94,7 @@ func ShowMovie(context telebot.Context, movieData *Movie, isMovie bool) error {
 	_, err = context.Bot().Send(context.Chat(), imageFile, replyMarkup, telebot.ModeMarkdown)
 	if err != nil {
 		log.Printf("Failed to send movie details: %v", err)
-		return fmt.Errorf("could not send movie details: %w", err)
+		return context.Send(messages.InternalError)
 	}
 
 	log.Printf("Movie details sent successfully for movie ID: %d", movieData.ID)

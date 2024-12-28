@@ -10,6 +10,7 @@ import (
 	"movie-manager-bot/api"
 	"movie-manager-bot/api/media/image"
 	"movie-manager-bot/config"
+	"movie-manager-bot/helpers/messages"
 	"movie-manager-bot/helpers/utils"
 	"movie-manager-bot/models"
 	"movie-manager-bot/storage/database"
@@ -67,7 +68,7 @@ func ShowTV(context telebot.Context, tvData *TV, isTVShow bool) error {
 	imgBuffer, err := image.GetImage(tvData.PosterPath)
 	if err != nil {
 		log.Printf("Error retrieving image: %v", err)
-		return fmt.Errorf("could not retrieve image: %w", err)
+		return context.Send(messages.InternalError)
 	}
 
 	// Prepare TV details caption
@@ -92,7 +93,7 @@ func ShowTV(context telebot.Context, tvData *TV, isTVShow bool) error {
 	var watchlist []models.Watchlist
 	if err = database.DB.Where("show_api_id = ? AND user_id = ?", tvData.ID, context.Sender().ID).Find(&watchlist).Error; err != nil {
 		log.Printf("Database error: %v", err)
-		return context.Send("Something went wrong while checking your watchlist.")
+		return context.Send(messages.WatchlistCheckError)
 	}
 
 	replyMarkup := generateReplyMarkup(tvData.ID, len(watchlist) > 0, isTVShow)
@@ -100,6 +101,7 @@ func ShowTV(context telebot.Context, tvData *TV, isTVShow bool) error {
 	// Delete the original context message
 	if err = context.Delete(); err != nil {
 		log.Printf("Failed to delete original message: %v", err)
+		return context.Send(messages.InternalError)
 	}
 
 	// Send the TV details with poster and buttons
@@ -111,7 +113,7 @@ func ShowTV(context telebot.Context, tvData *TV, isTVShow bool) error {
 	_, err = context.Bot().Send(context.Chat(), imageFile, replyMarkup, telebot.ModeMarkdown)
 	if err != nil {
 		log.Printf("Failed to send TV details: %v", err)
-		return fmt.Errorf("could not send TV details: %w", err)
+		return context.Send(messages.InternalError)
 	}
 
 	log.Printf("TV details sent successfully for TV ID: %d", tvData.ID)

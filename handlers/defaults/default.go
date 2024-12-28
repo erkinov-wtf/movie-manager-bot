@@ -6,6 +6,7 @@ import (
 	"gopkg.in/telebot.v3"
 	"gorm.io/gorm"
 	"log"
+	"movie-manager-bot/helpers/messages"
 	"movie-manager-bot/models"
 	"movie-manager-bot/storage/database"
 	"strconv"
@@ -13,7 +14,7 @@ import (
 )
 
 func (*defaultHandler) Start(context telebot.Context) error {
-	log.Print("/start command received")
+	log.Print(messages.StartCommand)
 
 	var existingUser models.User
 	if err := database.DB.Where("id = ?", context.Sender().ID).First(&existingUser).Error; err != nil {
@@ -24,24 +25,23 @@ func (*defaultHandler) Start(context telebot.Context) error {
 			}
 
 			btn.Inline(btnRows...)
-			message := "By using this bot, you agree to our [Privacy Policy](https://example.com/privacy-policy)"
-			err := context.Send(message, &telebot.SendOptions{
+			err = context.Send(messages.PrivacyPolicy, &telebot.SendOptions{
 				ParseMode:   telebot.ModeMarkdown,
 				ReplyMarkup: btn,
 			})
 			if err != nil {
 				log.Printf(err.Error())
-				return err
+				return context.Send(messages.InternalError)
 			}
 		} else {
 			log.Printf("Database error: %v", err)
-			return err
+			return context.Send(messages.InternalError)
 		}
 	} else {
-		err = context.Send("use /help for assistance")
+		err = context.Send(messages.UseHelp)
 		if err != nil {
 			log.Print(err)
-			return err
+			return context.Send(messages.InternalError)
 		}
 	}
 
@@ -52,6 +52,7 @@ func (*defaultHandler) handleStartCallback(context telebot.Context, userId strin
 	parsedId, err := strconv.Atoi(userId)
 	if err != nil {
 		log.Printf("cant convert id: %v", err.Error())
+		return context.Send(messages.InternalError)
 	}
 
 	newUser := models.User{
@@ -64,13 +65,13 @@ func (*defaultHandler) handleStartCallback(context telebot.Context, userId strin
 
 	if err = database.DB.Create(&newUser).Error; err != nil {
 		log.Printf("cant create user: %v", err.Error())
-		return err
+		return context.Send(messages.InternalError)
 	}
 
-	err = context.Send("You have been successfully registered.\nNow you can use this bot. Use /help for assistance)")
+	err = context.Send(messages.Registered)
 	if err != nil {
 		log.Printf(err.Error())
-		return err
+		return context.Send(messages.InternalError)
 	}
 
 	return nil
@@ -81,13 +82,13 @@ func (h *defaultHandler) DefaultCallback(context telebot.Context) error {
 	trimmed := strings.TrimSpace(callback.Data)
 
 	if !strings.HasPrefix(trimmed, "default|") {
-		return nil
+		return context.Send(messages.InternalError)
 	}
 
 	dataParts := strings.Split(trimmed, "|")
 	if len(dataParts) != 3 {
 		log.Printf("Received malformed callback data: %s", callback.Data)
-		return context.Respond(&telebot.CallbackResponse{Text: "Malformed data received"})
+		return context.Respond(&telebot.CallbackResponse{Text: messages.MalformedData})
 	}
 
 	action := dataParts[1]
@@ -97,6 +98,6 @@ func (h *defaultHandler) DefaultCallback(context telebot.Context) error {
 	case "start":
 		return h.handleStartCallback(context, data)
 	default:
-		return context.Respond(&telebot.CallbackResponse{Text: "Unknown action"})
+		return context.Respond(&telebot.CallbackResponse{Text: messages.UnknownAction})
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"gopkg.in/telebot.v3"
 	"log"
+	"movie-manager-bot/helpers/messages"
 	"movie-manager-bot/models"
 	"movie-manager-bot/storage/database"
 	"strconv"
@@ -11,12 +12,12 @@ import (
 )
 
 func (*infoHandler) Info(context telebot.Context) error {
-	log.Print("/info command received")
+	log.Print(messages.InfoCommand)
 
-	msg, err := context.Bot().Send(context.Chat(), "Loading...")
+	msg, err := context.Bot().Send(context.Chat(), messages.Loading)
 	if err != nil {
 		log.Print(err)
-		return err
+		return context.Send(messages.InternalError)
 	}
 
 	btn := &telebot.ReplyMarkup{}
@@ -28,10 +29,10 @@ func (*infoHandler) Info(context telebot.Context) error {
 
 	btn.Inline(btnRows...)
 
-	_, err = context.Bot().Edit(msg, "What you want info about?", btn)
+	_, err = context.Bot().Edit(msg, messages.InfoFirstMessage, btn)
 	if err != nil {
 		log.Print(err)
-		return err
+		return context.Send(messages.InternalError)
 	}
 
 	return nil
@@ -42,7 +43,7 @@ func (i *infoHandler) handleTVDetails(context telebot.Context, msgId string) err
 
 	if err := database.DB.Where("user_id = ?", context.Sender().ID).Find(&watchedShows).Error; err != nil {
 		log.Printf("cant get all tv shows: %v", err.Error())
-		return err
+		return context.Send(messages.InternalError)
 	}
 
 	info := tvStats{}
@@ -73,7 +74,7 @@ func (i *infoHandler) handleTVDetails(context telebot.Context, msgId string) err
 	_, err := context.Bot().Edit(msg, text, telebot.ModeMarkdown)
 	if err != nil {
 		log.Print(err)
-		return err
+		return context.Send(messages.InternalError)
 	}
 
 	return nil
@@ -84,7 +85,7 @@ func (i *infoHandler) handleMovieDetails(context telebot.Context, msgId string) 
 
 	if err := database.DB.Where("user_id = ?", context.Sender().ID).Find(&watchedMovies).Error; err != nil {
 		log.Printf("cant get all tv movies: %v", err.Error())
-		return err
+		return context.Send(messages.InternalError)
 	}
 
 	info := movieStats{}
@@ -115,7 +116,7 @@ func (i *infoHandler) handleMovieDetails(context telebot.Context, msgId string) 
 	_, err := context.Bot().Edit(msg, text, telebot.ModeMarkdown)
 	if err != nil {
 		log.Print(err)
-		return err
+		return context.Send(messages.InternalError)
 	}
 
 	return nil
@@ -127,12 +128,12 @@ func (i *infoHandler) handleFullDetails(context telebot.Context, data string) er
 
 	if err := database.DB.Where("user_id = ?", context.Sender().ID).Find(&watchedMovies).Error; err != nil {
 		log.Printf("cant get all movies: %v", err.Error())
-		return err
+		return context.Send(messages.InternalError)
 	}
 
 	if err := database.DB.Where("user_id = ?", context.Sender().ID).Find(&watchedShows).Error; err != nil {
 		log.Printf("cant get all tv shows: %v", err.Error())
-		return err
+		return context.Send(messages.InternalError)
 	}
 
 	movieInfo := movieStats{}
@@ -193,7 +194,7 @@ func (i *infoHandler) handleFullDetails(context telebot.Context, data string) er
 	_, err := context.Bot().Edit(msg, text, telebot.ModeMarkdown)
 	if err != nil {
 		log.Print(err)
-		return err
+		return context.Send(messages.InternalError)
 	}
 
 	return nil
@@ -204,13 +205,13 @@ func (i *infoHandler) InfoCallback(context telebot.Context) error {
 	trimmed := strings.TrimSpace(callback.Data)
 
 	if !strings.HasPrefix(trimmed, "info|") {
-		return nil
+		return context.Send(messages.InternalError)
 	}
 
 	dataParts := strings.Split(trimmed, "|")
 	if len(dataParts) != 3 {
 		log.Printf("Received malformed callback data: %s", callback.Data)
-		return context.Respond(&telebot.CallbackResponse{Text: "Malformed data received"})
+		return context.Respond(&telebot.CallbackResponse{Text: messages.MalformedData})
 	}
 
 	action := dataParts[1]
@@ -227,7 +228,7 @@ func (i *infoHandler) InfoCallback(context telebot.Context) error {
 		return i.handleFullDetails(context, data)
 
 	default:
-		return context.Respond(&telebot.CallbackResponse{Text: "Unknown action"})
+		return context.Respond(&telebot.CallbackResponse{Text: messages.UnknownAction})
 	}
 }
 
