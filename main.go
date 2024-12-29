@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"gopkg.in/telebot.v3"
 	"log"
@@ -8,13 +9,16 @@ import (
 	"movie-manager-bot/commands"
 	"movie-manager-bot/config"
 	"movie-manager-bot/dependencyInjection"
+	"movie-manager-bot/helpers/workers"
 	"movie-manager-bot/storage/database"
 	"time"
 )
 
 func main() {
+	log.Print("starting bot...")
 	config.MustLoad()
 	api.NewClient()
+	log.Print("api client initialized")
 	database.DBConnect()
 
 	settings := telebot.Settings{
@@ -35,7 +39,17 @@ func main() {
 	commands.SetupTVRoutes(bot, container)
 	commands.SetupInfoRoutes(bot, container)
 	commands.SetupWatchlistRoutes(bot, container)
+	log.Print("bot handlers setup")
 
-	log.Print("starting bot...")
+	// Create a cancellable context
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Start the checker in a separate goroutine
+	apiClient := workers.NewWorkerApiClient(50)
+	checker := workers.NewTVShowChecker(database.DB, bot, apiClient)
+	go checker.StartChecking(ctx, 336*time.Hour)
+
+	log.Print("bot started")
 	bot.Start()
 }

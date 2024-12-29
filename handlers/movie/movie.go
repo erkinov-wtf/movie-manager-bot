@@ -8,8 +8,8 @@ import (
 	"log"
 	"movie-manager-bot/api/media/movie"
 	"movie-manager-bot/api/media/search"
-	"movie-manager-bot/helpers"
 	"movie-manager-bot/helpers/messages"
+	"movie-manager-bot/helpers/paginators"
 	"movie-manager-bot/models"
 	"movie-manager-bot/storage/cache"
 	"movie-manager-bot/storage/database"
@@ -59,8 +59,8 @@ func (*movieHandler) SearchMovie(context telebot.Context) error {
 		moviesCache[userID].Set(i+1, result)
 	}
 
-	paginatedMovies := helpers.PaginateMovies(moviesCache[userID], 1, movieCount[userID])
-	response, btn := helpers.GenerateMovieResponse(paginatedMovies, *pagePointer[userID], maxPage[userID], movieCount[userID])
+	paginatedMovies := paginators.PaginateMovies(moviesCache[userID], 1, movieCount[userID])
+	response, btn := paginators.GenerateMovieResponse(paginatedMovies, *pagePointer[userID], maxPage[userID], movieCount[userID])
 
 	_, err = context.Bot().Edit(msg, response, btn, telebot.ModeMarkdown)
 	if err != nil {
@@ -206,8 +206,8 @@ func (h *movieHandler) handleBackToPagination(context telebot.Context) error {
 	}
 
 	// Paginate and send updated movie list
-	paginatedMovies := helpers.PaginateMovies(moviesCache[userID], *pagePointer[userID], movieCount[userID])
-	response, btn := helpers.GenerateMovieResponse(paginatedMovies, *pagePointer[userID], maxPage[userID], movieCount[userID])
+	paginatedMovies := paginators.PaginateMovies(moviesCache[userID], *pagePointer[userID], movieCount[userID])
+	response, btn := paginators.GenerateMovieResponse(paginatedMovies, *pagePointer[userID], maxPage[userID], movieCount[userID])
 	_, err := context.Bot().Send(context.Chat(), response, btn, telebot.ModeMarkdown)
 	if err != nil {
 		log.Printf("Failed to return to paginated results: %v", err)
@@ -229,7 +229,7 @@ func (h *movieHandler) handleNextPage(context telebot.Context) error {
 		*pagePointer[userID] = maxPage[userID]
 	}
 
-	paginatedMovies := helpers.PaginateMovies(moviesCache[userID], *pagePointer[userID], movieCount[userID])
+	paginatedMovies := paginators.PaginateMovies(moviesCache[userID], *pagePointer[userID], movieCount[userID])
 	return updateMovieMessage(context, paginatedMovies, *pagePointer[userID], maxPage[userID], movieCount[userID])
 }
 
@@ -247,12 +247,12 @@ func (h *movieHandler) handlePrevPage(context telebot.Context) error {
 	}
 
 	// Send updated page
-	paginatedMovies := helpers.PaginateMovies(moviesCache[userID], *pagePointer[userID], movieCount[userID])
+	paginatedMovies := paginators.PaginateMovies(moviesCache[userID], *pagePointer[userID], movieCount[userID])
 	return updateMovieMessage(context, paginatedMovies, *pagePointer[userID], maxPage[userID], movieCount[userID])
 }
 
 func updateMovieMessage(context telebot.Context, paginatedMovies []movie.Movie, currentPage, maxPage, movieCount int) error {
-	response, btn := helpers.GenerateMovieResponse(paginatedMovies, currentPage, maxPage, movieCount)
+	response, btn := paginators.GenerateMovieResponse(paginatedMovies, currentPage, maxPage, movieCount)
 	_, err := context.Bot().Edit(context.Message(), response, btn, telebot.ModeMarkdown)
 	if err != nil {
 		log.Printf("Failed to update movie message: %v", err)
