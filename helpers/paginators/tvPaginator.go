@@ -1,4 +1,4 @@
-package helpers
+package paginators
 
 import (
 	"movie-manager-bot/api/media/tv"

@@ -6,8 +6,8 @@ import (
 	"log"
 	"movie-manager-bot/api/media/movie"
 	"movie-manager-bot/api/media/tv"
-	"movie-manager-bot/helpers"
 	"movie-manager-bot/helpers/messages"
+	"movie-manager-bot/helpers/paginators"
 	"movie-manager-bot/models"
 	"movie-manager-bot/storage/database"
 	"strconv"
@@ -66,8 +66,8 @@ func (h *watchlistHandler) handleTVWatchlist(context telebot.Context, msgId stri
 	totalItems := len(watchlist)
 	totalPages := (totalItems + itemsPerPage - 1) / itemsPerPage
 
-	paginatedWatchlist := helpers.PaginateWatchlist(watchlist, currentPage)
-	response, btn := helpers.GenerateWatchlistResponse(&paginatedWatchlist, currentPage, totalPages, totalItems, string(models.TVShowType))
+	paginatedWatchlist := paginators.PaginateWatchlist(watchlist, currentPage)
+	response, btn := paginators.GenerateWatchlistResponse(&paginatedWatchlist, currentPage, totalPages, totalItems, string(models.TVShowType))
 
 	_, err := context.Bot().Edit(msg, response, btn, telebot.ModeMarkdown)
 	if err != nil {
@@ -103,8 +103,8 @@ func (h *watchlistHandler) handleMovieWatchlist(context telebot.Context, msgId s
 	totalItems := len(watchlist)
 	totalPages := (totalItems + itemsPerPage - 1) / itemsPerPage
 
-	paginatedWatchlist := helpers.PaginateWatchlist(watchlist, currentPage)
-	response, btn := helpers.GenerateWatchlistResponse(&paginatedWatchlist, currentPage, totalPages, totalItems, string(models.MovieType))
+	paginatedWatchlist := paginators.PaginateWatchlist(watchlist, currentPage)
+	response, btn := paginators.GenerateWatchlistResponse(&paginatedWatchlist, currentPage, totalPages, totalItems, string(models.MovieType))
 
 	_, err := context.Bot().Edit(msg, response, btn, telebot.ModeMarkdown)
 	if err != nil {
@@ -140,8 +140,8 @@ func (h *watchlistHandler) handleFullWatchlist(context telebot.Context, msgId st
 	totalItems := len(watchlist)
 	totalPages := (totalItems + itemsPerPage - 1) / itemsPerPage
 
-	paginatedWatchlist := helpers.PaginateWatchlist(watchlist, currentPage)
-	response, btn := helpers.GenerateWatchlistResponse(&paginatedWatchlist, currentPage, totalPages, totalItems, string(models.AllType))
+	paginatedWatchlist := paginators.PaginateWatchlist(watchlist, currentPage)
+	response, btn := paginators.GenerateWatchlistResponse(&paginatedWatchlist, currentPage, totalPages, totalItems, string(models.AllType))
 
 	_, err := context.Bot().Edit(msg, response, btn, telebot.ModeMarkdown)
 	if err != nil {
@@ -218,8 +218,8 @@ func (h *watchlistHandler) handleBackToPagination(context telebot.Context, showT
 	totalItems := len(watchlist)
 	totalPages := (totalItems + itemsPerPage - 1) / itemsPerPage
 
-	paginatedWatchlist := helpers.PaginateWatchlist(watchlist, currentPage)
-	response, btn := helpers.GenerateWatchlistResponse(&paginatedWatchlist, currentPage, totalPages, totalItems, showType)
+	paginatedWatchlist := paginators.PaginateWatchlist(watchlist, currentPage)
+	response, btn := paginators.GenerateWatchlistResponse(&paginatedWatchlist, currentPage, totalPages, totalItems, showType)
 
 	// Delete the movie/show details message
 	if err := context.Delete(); err != nil {
@@ -305,8 +305,8 @@ func (h *watchlistHandler) WatchlistCallback(context telebot.Context) error {
 			currentPage--
 		}
 
-		paginatedWatchlist := helpers.PaginateWatchlist(watchlist, currentPage)
-		response, btn := helpers.GenerateWatchlistResponse(&paginatedWatchlist, currentPage, totalPages, totalItems, watchlistType)
+		paginatedWatchlist := paginators.PaginateWatchlist(watchlist, currentPage)
+		response, btn := paginators.GenerateWatchlistResponse(&paginatedWatchlist, currentPage, totalPages, totalItems, watchlistType)
 
 		_, err = context.Bot().Edit(context.Message(), response, btn, telebot.ModeMarkdown)
 		if err != nil {

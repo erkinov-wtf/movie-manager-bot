@@ -6,8 +6,8 @@ import (
 	"log"
 	"movie-manager-bot/api/media/search"
 	"movie-manager-bot/api/media/tv"
-	"movie-manager-bot/helpers"
 	"movie-manager-bot/helpers/messages"
+	"movie-manager-bot/helpers/paginators"
 	"movie-manager-bot/models"
 	"movie-manager-bot/storage/cache"
 	"movie-manager-bot/storage/database"
@@ -64,8 +64,8 @@ func (*tvHandler) SearchTV(context telebot.Context) error {
 		tvCache[userID].Set(i+1, result)
 	}
 
-	paginatedTV := helpers.PaginateTV(tvCache[userID], 1, tvCount[userID])
-	response, btn := helpers.GenerateTVResponse(paginatedTV, *pagePointer[userID], maxPage[userID], tvCount[userID])
+	paginatedTV := paginators.PaginateTV(tvCache[userID], 1, tvCount[userID])
+	response, btn := paginators.GenerateTVResponse(paginatedTV, *pagePointer[userID], maxPage[userID], tvCount[userID])
 	_, err = context.Bot().Edit(msg, response, btn, telebot.ModeMarkdown)
 	if err != nil {
 		log.Print(err)
@@ -212,6 +212,7 @@ func (h *tvHandler) handleWatched(context telebot.Context, data string) error {
 		Seasons:  int64(seasonNum),
 		Episodes: episodes,
 		Runtime:  runtime,
+		Status:   selectedTvShow[userID].Status,
 	}
 
 	if watchedSeasons > 0 {
@@ -235,7 +236,7 @@ func (h *tvHandler) handleWatched(context telebot.Context, data string) error {
 
 	tx.Commit()
 
-	_, err = context.Bot().Send(context.Chat(), fmt.Sprintf("The TV Show added as watched with below data:\nSeasons: %v\nEpisodes: %v\nRuntime: %v", seasonNum, episodes, runtime), telebot.ModeMarkdown)
+	_, err = context.Bot().Send(context.Chat(), fmt.Sprintf("The TV Show added as watched with below data:\nName: %v\nSeasons: %v\nEpisodes: %v\nRuntime: %v", selectedTvShow[userID].Name, seasonNum, episodes, runtime), telebot.ModeMarkdown)
 	if err != nil {
 		log.Print(err)
 		return context.Send(messages.InternalError)
@@ -292,8 +293,8 @@ func (h *tvHandler) handleBackToPagination(context telebot.Context) error {
 		return context.Send(messages.InternalError)
 	}
 
-	paginatedTV := helpers.PaginateTV(tvCache[userID], *pagePointer[userID], tvCount[userID])
-	response, btn := helpers.GenerateTVResponse(paginatedTV, *pagePointer[userID], maxPage[userID], tvCount[userID])
+	paginatedTV := paginators.PaginateTV(tvCache[userID], *pagePointer[userID], tvCount[userID])
+	response, btn := paginators.GenerateTVResponse(paginatedTV, *pagePointer[userID], maxPage[userID], tvCount[userID])
 	_, err = context.Bot().Send(context.Chat(), response, btn, telebot.ModeMarkdown)
 	if err != nil {
 		log.Print(err)
@@ -321,7 +322,7 @@ func (h *tvHandler) handleNextPage(context telebot.Context) error {
 		*pagePointer[userID] = maxPage[userID]
 	}
 
-	paginatedTV := helpers.PaginateTV(tvCache[userID], *pagePointer[userID], tvCount[userID])
+	paginatedTV := paginators.PaginateTV(tvCache[userID], *pagePointer[userID], tvCount[userID])
 	return updateTVMessage(context, paginatedTV, *pagePointer[userID], maxPage[userID], tvCount[userID])
 }
 
@@ -337,12 +338,12 @@ func (h *tvHandler) handlePrevPage(context telebot.Context) error {
 		*pagePointer[userID] = 1
 	}
 
-	paginatedTV := helpers.PaginateTV(tvCache[userID], *pagePointer[userID], tvCount[userID])
+	paginatedTV := paginators.PaginateTV(tvCache[userID], *pagePointer[userID], tvCount[userID])
 	return updateTVMessage(context, paginatedTV, *pagePointer[userID], maxPage[userID], tvCount[userID])
 }
 
 func updateTVMessage(context telebot.Context, paginatedTV []tv.TV, currentPage, maxPage, tvCount int) error {
-	response, btn := helpers.GenerateTVResponse(paginatedTV, currentPage, maxPage, tvCount)
+	response, btn := paginators.GenerateTVResponse(paginatedTV, currentPage, maxPage, tvCount)
 	_, err := context.Bot().Edit(context.Message(), response, btn, telebot.ModeMarkdown)
 	if err != nil {
 		log.Printf("Failed to update tv message: %v", err)

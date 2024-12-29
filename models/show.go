@@ -14,6 +14,7 @@ type TVShows struct {
 	Seasons   int64          `gorm:"type:uint"`
 	Episodes  int64          `gorm:"type:uint"`
 	Runtime   int64          `gorm:"type:uint"`
+	Status    string         `gorm:"type:varchar"`
 	CreatedAt time.Time      `gorm:"column:created_at"`
 	UpdatedAt time.Time      `gorm:"column:updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at"`

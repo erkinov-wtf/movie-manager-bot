@@ -4,6 +4,8 @@ go 1.22
 
 require (
 	github.com/google/uuid v1.6.0
+	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
+	golang.org/x/time v0.0.0-20191024005414-555d28b269f0
 	gopkg.in/telebot.v3 v3.3.8
 	gorm.io/driver/postgres v1.5.9
 	gorm.io/gorm v1.25.12
@@ -16,7 +18,6 @@ require (
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
-	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646 // indirect
 	github.com/stretchr/testify v1.9.0 // indirect
 	golang.org/x/crypto v0.28.0 // indirect
 	golang.org/x/sync v0.8.0 // indirect

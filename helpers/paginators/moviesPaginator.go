@@ -1,4 +1,4 @@
-package helpers
+package paginators
 
 import (
 	movieType "movie-manager-bot/api/media/movie"
