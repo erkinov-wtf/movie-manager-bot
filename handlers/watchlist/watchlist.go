@@ -169,7 +169,7 @@ func (h *watchlistHandler) handleWatchlistInfo(context telebot.Context, data str
 	}
 
 	if movieType == string(models.MovieType) {
-		movieData, err := movie.GetMovie(parsedId)
+		movieData, err := movie.GetMovie(parsedId, context.Sender().ID)
 		if err != nil {
 			log.Print(err)
 			return context.Send(messages.InternalError)
@@ -183,7 +183,7 @@ func (h *watchlistHandler) handleWatchlistInfo(context telebot.Context, data str
 
 		return context.Respond(&telebot.CallbackResponse{Text: messages.MovieSelected})
 	} else {
-		tvData, err := tv.GetTV(parsedId)
+		tvData, err := tv.GetTV(parsedId, context.Sender().ID)
 		if err != nil {
 			log.Print(err)
 			return err

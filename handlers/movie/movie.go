@@ -39,7 +39,7 @@ func (*movieHandler) SearchMovie(context telebot.Context) error {
 	}
 
 	// Fetch search results
-	movieData, err := search.SearchMovie(context.Message().Payload)
+	movieData, err := search.SearchMovie(context.Message().Payload, userID)
 	if err != nil || movieData.TotalResults == 0 {
 		_, err = context.Bot().Edit(msg, fmt.Sprintf("No movies found for *%s*", context.Message().Payload), telebot.ModeMarkdown)
 		if err != nil {
@@ -77,7 +77,7 @@ func (h *movieHandler) handleMovieDetails(context telebot.Context, data string) 
 		return err
 	}
 
-	movieData, err := movie.GetMovie(parsedId)
+	movieData, err := movie.GetMovie(parsedId, context.Sender().ID)
 	if err != nil {
 		log.Print(err)
 		return err
@@ -123,7 +123,7 @@ func (h *movieHandler) handleWatchedDetails(context telebot.Context, movieIdStr 
 		return fmt.Errorf("database error: %v", result.Error)
 	}
 
-	movieData, err := movie.GetMovie(movieId)
+	movieData, err := movie.GetMovie(movieId, context.Sender().ID)
 	if err != nil {
 		log.Printf("couldnt retrive movie from api: %v", err.Error())
 		return context.Send(messages.InternalError)
@@ -164,7 +164,7 @@ func (h *movieHandler) handleWatchlist(context telebot.Context, data string) err
 		return context.Send(messages.WatchedMovie)
 	}
 
-	movieData, err := movie.GetMovie(movieId)
+	movieData, err := movie.GetMovie(movieId, context.Sender().ID)
 	if err != nil {
 		log.Print(err)
 		return context.Send(messages.WatchedMovie)

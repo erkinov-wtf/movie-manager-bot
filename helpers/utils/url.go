@@ -3,11 +3,11 @@ package utils
 import (
 	"log"
 	"movie-manager-bot/api"
-	"movie-manager-bot/config"
+	"movie-manager-bot/storage/cache"
 	"net/url"
 )
 
-func MakeUrl(endpoint string, queryParams map[string]string) string {
+func MakeUrl(endpoint string, queryParams map[string]string, userId int64) string {
 	base, err := url.Parse(api.Client.BaseUrl)
 	if err != nil {
 		log.Fatalf("Invalid base URL: %v", err)
@@ -15,8 +15,10 @@ func MakeUrl(endpoint string, queryParams map[string]string) string {
 
 	base.Path += endpoint
 
+	_, _, token := cache.UserCache.Get(userId)
+
 	params := url.Values{}
-	params.Add("api_key", config.Cfg.General.ApiKey)
+	params.Add("api_key", token.Token)
 
 	for key, value := range queryParams {
 		params.Add(key, value)

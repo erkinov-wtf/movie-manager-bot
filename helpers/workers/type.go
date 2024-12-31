@@ -20,7 +20,7 @@ type WorkerApiClient struct {
 }
 
 type TVShowAPIClient interface {
-	GetShowDetails(apiID int64) (*tv.TV, error)
+	GetShowDetails(apiID int, userId int64) (*tv.TV, error)
 }
 
 func NewWorkerApiClient(requestsPerSecond float64) *WorkerApiClient {

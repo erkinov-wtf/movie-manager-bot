@@ -2,7 +2,6 @@ package api
 
 import (
 	"crypto/tls"
-	"log"
 	"movie-manager-bot/config"
 	"net/http"
 	"time"
@@ -11,18 +10,12 @@ import (
 var Client TMDBClient
 
 type TMDBClient struct {
-	ApiKey     string
 	HttpClient *http.Client
 	BaseUrl    string
 	ImageUrl   string
 }
 
 func NewClient() {
-	apiKey := config.Cfg.General.ApiKey
-	if apiKey == "" {
-		log.Fatal("Client API Key is not found")
-	}
-
 	// Creating custom Transport with connection pooling and timeouts
 	transport := &http.Transport{
 		MaxIdleConns:    100,
@@ -36,7 +29,6 @@ func NewClient() {
 	}
 
 	Client = TMDBClient{
-		ApiKey: apiKey,
 		HttpClient: &http.Client{
 			Transport: transport,
 			Timeout:   10 * time.Second, // Overall request timeout

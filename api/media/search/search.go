@@ -10,12 +10,12 @@ import (
 	"net/http"
 )
 
-func SearchMovie(movieTitle string) (*MovieSearch, error) {
+func SearchMovie(movieTitle string, userId int64) (*MovieSearch, error) {
 	params := map[string]string{
 		"include_adult": "true",
 		"query":         movieTitle,
 	}
-	url := utils.MakeUrl(config.Cfg.Endpoints.SearchMovie, params)
+	url := utils.MakeUrl(config.Cfg.Endpoints.SearchMovie, params, userId)
 
 	resp, err := api.Client.HttpClient.Get(url)
 	if err != nil {
@@ -37,12 +37,12 @@ func SearchMovie(movieTitle string) (*MovieSearch, error) {
 	return &result, nil
 }
 
-func SearchTV(tvTitle string) (*TVSearch, error) {
+func SearchTV(tvTitle string, userId int64) (*TVSearch, error) {
 	params := map[string]string{
 		"include_adult": "true",
 		"query":         tvTitle,
 	}
-	url := utils.MakeUrl(config.Cfg.Endpoints.SearchTv, params)
+	url := utils.MakeUrl(config.Cfg.Endpoints.SearchTv, params, userId)
 
 	resp, err := api.Client.HttpClient.Get(url)
 	if err != nil {

@@ -15,7 +15,6 @@ type Config struct {
 
 type General struct {
 	BotToken string
-	ApiKey   string
 }
 
 type Database struct {
@@ -46,7 +45,6 @@ func MustLoad() {
 	Cfg = Config{
 		General: General{
 			BotToken: getEnv("BOT_TOKEN"),
-			ApiKey:   getEnv("API_KEY"),
 		},
 		Database: Database{
 			Host:     getEnv("DB_HOST"),

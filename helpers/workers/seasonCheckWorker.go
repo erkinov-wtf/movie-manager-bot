@@ -14,7 +14,7 @@ import (
 	"movie-manager-bot/models"
 )
 
-func (c *WorkerApiClient) GetShowDetails(apiID int64) (*tv.TV, error) {
+func (c *WorkerApiClient) GetShowDetails(apiID int, userId int64) (*tv.TV, error) {
 	log.Printf("[Worker] Attempting to fetch details for show ID: %d", apiID)
 
 	err := c.limiter.Wait(context.Background())
@@ -24,7 +24,7 @@ func (c *WorkerApiClient) GetShowDetails(apiID int64) (*tv.TV, error) {
 	}
 
 	start := time.Now()
-	tvData, err := tv.GetTV(int(apiID))
+	tvData, err := tv.GetTV(apiID, userId)
 	duration := time.Since(start)
 
 	if err != nil {
@@ -119,7 +119,7 @@ func (c *TVShowChecker) showWorker(showChan chan ShowRequest, wg *sync.WaitGroup
 }
 
 func (c *TVShowChecker) processShow(user *models.User, show models.TVShows) {
-	details, err := c.apiClient.GetShowDetails(show.ApiID)
+	details, err := c.apiClient.GetShowDetails(int(show.ApiID), user.ID)
 	if err != nil {
 		log.Printf("[Worker] Error fetching show details for %d: %v", show.ApiID, err)
 		return

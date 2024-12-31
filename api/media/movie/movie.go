@@ -18,8 +18,8 @@ import (
 )
 
 // GetMovie fetches movie details by ID from the API.
-func GetMovie(movieId int) (*Movie, error) {
-	url := utils.MakeUrl(fmt.Sprintf("%s/%v", config.Cfg.Endpoints.GetMovie, movieId), nil)
+func GetMovie(movieId int, userId int64) (*Movie, error) {
+	url := utils.MakeUrl(fmt.Sprintf("%s/%v", config.Cfg.Endpoints.GetMovie, movieId), nil, userId)
 
 	resp, err := api.Client.HttpClient.Get(url)
 	if err != nil {

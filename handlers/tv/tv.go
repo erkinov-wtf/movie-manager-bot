@@ -37,7 +37,7 @@ func (*tvHandler) SearchTV(context telebot.Context) error {
 		return context.Send(messages.InternalError)
 	}
 
-	tvData, err := search.SearchTV(context.Message().Payload)
+	tvData, err := search.SearchTV(context.Message().Payload, userID)
 	if err != nil {
 		log.Print(err)
 		return context.Send(messages.InternalError)
@@ -82,7 +82,7 @@ func (h *tvHandler) handleTVDetails(context telebot.Context, data string) error 
 		return context.Send(messages.InternalError)
 	}
 
-	tvData, err := tv.GetTV(parsedId)
+	tvData, err := tv.GetTV(parsedId, context.Sender().ID)
 	if err != nil {
 		log.Print(err)
 		return context.Send(messages.InternalError)
@@ -112,7 +112,7 @@ func (h *tvHandler) handleSelectSeasons(context telebot.Context, tvId string) er
 		}
 	}
 
-	tvShow, err := tv.GetTV(TVId)
+	tvShow, err := tv.GetTV(TVId, context.Sender().ID)
 	if err != nil {
 		log.Printf("Error fetching TV show: %v", err)
 		return context.Send(messages.InternalError)
@@ -192,7 +192,7 @@ func (h *tvHandler) handleWatched(context telebot.Context, data string) error {
 
 	var episodes, runtime int64
 	for i := 1; i <= seasonNum; i++ {
-		tvSeason, err := tv.GetSeason(int(selectedTvShow[userID].ID), i)
+		tvSeason, err := tv.GetSeason(int(selectedTvShow[userID].ID), i, userID)
 		if err != nil {
 			log.Print(err.Error())
 			return context.Send(messages.InternalError)
@@ -252,7 +252,7 @@ func (h *tvHandler) handleWatchlist(context telebot.Context, tvId string) error 
 		return context.Send(messages.InternalError)
 	}
 
-	tvShow, err := tv.GetTV(tvShowId)
+	tvShow, err := tv.GetTV(tvShowId, context.Sender().ID)
 	if err != nil {
 		log.Print(err)
 		return context.Send(messages.InternalError)

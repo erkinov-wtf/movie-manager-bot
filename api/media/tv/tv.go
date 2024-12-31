@@ -17,8 +17,8 @@ import (
 	"net/http"
 )
 
-func GetTV(tvId int) (*TV, error) {
-	url := utils.MakeUrl(fmt.Sprintf("%s/%v", config.Cfg.Endpoints.GetTv, tvId), nil)
+func GetTV(tvId int, userId int64) (*TV, error) {
+	url := utils.MakeUrl(fmt.Sprintf("%s/%v", config.Cfg.Endpoints.GetTv, tvId), nil, userId)
 
 	resp, err := api.Client.HttpClient.Get(url)
 	if err != nil {
@@ -40,8 +40,8 @@ func GetTV(tvId int) (*TV, error) {
 	return &result, nil
 }
 
-func GetSeason(tvId, seasonNumber int) (*Season, error) {
-	url := utils.MakeUrl(fmt.Sprintf("%s/%v/season/%v", config.Cfg.Endpoints.GetTv, tvId, seasonNumber), nil)
+func GetSeason(tvId, seasonNumber int, userId int64) (*Season, error) {
+	url := utils.MakeUrl(fmt.Sprintf("%s/%v/season/%v", config.Cfg.Endpoints.GetTv, tvId, seasonNumber), nil, userId)
 
 	resp, err := api.Client.HttpClient.Get(url)
 	if err != nil {
