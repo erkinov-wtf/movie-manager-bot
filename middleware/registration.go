@@ -8,18 +8,20 @@ import (
 	"time"
 )
 
-var userCache = cache.NewUserCache()
-
 func IsRegisteredUser(c telebot.Context) bool {
 	userID := c.Sender().ID
-	if registered, found := userCache.Get(userID); found && registered {
+	if registered, found, _ := cache.UserCache.Get(userID); found && registered {
 		return true
 	}
 
 	var user models.User
 	err := database.DB.First(&user, "id = ?", userID).Error
 	if err == nil {
-		userCache.Set(userID, true, 24*time.Hour)
+		isTokenWaiting := true
+		if user.TmdbApiKey != nil {
+			isTokenWaiting = false
+		}
+		cache.UserCache.Set(userID, true, 24*time.Hour, isTokenWaiting)
 		return true
 	}
 

@@ -6,18 +6,26 @@ import (
 	"log"
 	"movie-manager-bot/dependencyInjection"
 	"movie-manager-bot/middleware"
+	"movie-manager-bot/storage/cache"
 	"strings"
 	"time"
 )
 
 func SetupDefaultRoutes(bot *telebot.Bot, container *dependencyInjection.Container) {
-	bot.Handle(telebot.OnText, func(c telebot.Context) error {
-		log.Printf("Unknown command: %s", c.Message().Text)
-		return c.Send(fmt.Sprintf("Unknown %s command. Please use /help", c.Message().Text))
+	bot.Handle(telebot.OnText, func(context telebot.Context) error {
+		// Checking if bot waits for user's api key input
+		_, active, token := cache.UserCache.Get(context.Sender().ID)
+		if active && token.IsTokenWaiting {
+			log.Print("redirecting to api text input")
+			return container.DefaultHandler.HandleTextInput(context)
+		}
+		log.Printf("Unknown command: %s", context.Message().Text)
+		return context.Send(fmt.Sprintf("Unknown %s command. Please use /help", context.Message().Text))
 	})
 
 	bot.Handle(telebot.OnCallback, handleCallback(container))
 	bot.Handle("/start", container.DefaultHandler.Start)
+	bot.Handle("/token", middleware.RequireRegistration(container.DefaultHandler.GetToken))
 
 	// for dev debugging only
 	bot.Handle("/debug", func(context telebot.Context) error {
@@ -38,6 +46,12 @@ func SetupDefaultRoutes(bot *telebot.Bot, container *dependencyInjection.Contain
 			user.ID, user.Username, user.FirstName, user.LastName)
 		debugMessage += fmt.Sprintf("Message Text: %s\nMessage Payload: %s\nMessage Date: %s\n",
 			message.Text, message.Payload, message.Time().Format("2006-01-02 15:04:05"))
+		debugMessage += fmt.Sprint("============\n")
+
+		//cache data retrieval
+		cacheValue, cacheExpired, token := cache.UserCache.Get(context.Sender().ID)
+		debugMessage += fmt.Sprintf("Current User Cache \nCache value: %v\nIs Cache Active: %v\nIs Token Waiting: %v\nToken value: %v\n",
+			cacheValue, cacheExpired, token.IsTokenWaiting, token.Token)
 
 		return context.Send(debugMessage)
 	})

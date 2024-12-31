@@ -7,9 +7,10 @@ import (
 	"gorm.io/gorm"
 	"log"
 	"movie-manager-bot/helpers/messages"
+	"movie-manager-bot/helpers/utils"
 	"movie-manager-bot/models"
+	"movie-manager-bot/storage/cache"
 	"movie-manager-bot/storage/database"
-	"strconv"
 	"strings"
 )
 
@@ -21,7 +22,7 @@ func (*defaultHandler) Start(context telebot.Context) error {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			btn := &telebot.ReplyMarkup{}
 			btnRows := []telebot.Row{
-				btn.Row(btn.Data("✅ I Agree", "", fmt.Sprintf("default|start|%d", context.Sender().ID))),
+				btn.Row(btn.Data("✅ I Agree", "", fmt.Sprint("default|start|"))),
 			}
 
 			btn.Inline(btnRows...)
@@ -38,7 +39,7 @@ func (*defaultHandler) Start(context telebot.Context) error {
 			return context.Send(messages.InternalError)
 		}
 	} else {
-		err = context.Send(messages.UseHelp)
+		err = context.Send(messages.UseHelp, telebot.ModeMarkdown)
 		if err != nil {
 			log.Print(err)
 			return context.Send(messages.InternalError)
@@ -48,33 +49,52 @@ func (*defaultHandler) Start(context telebot.Context) error {
 	return nil
 }
 
-func (*defaultHandler) handleStartCallback(context telebot.Context, userId string) error {
-	parsedId, err := strconv.Atoi(userId)
-	if err != nil {
-		log.Printf("cant convert id: %v", err.Error())
-		return context.Send(messages.InternalError)
-	}
-
+func (*defaultHandler) handleStartCallback(context telebot.Context) error {
 	newUser := models.User{
-		ID:        int64(parsedId),
-		FirstName: &context.Sender().FirstName,
-		LastName:  &context.Sender().LastName,
-		Username:  &context.Sender().Username,
-		Language:  &context.Sender().LanguageCode,
+		ID:         context.Sender().ID,
+		FirstName:  &context.Sender().FirstName,
+		LastName:   &context.Sender().LastName,
+		Username:   &context.Sender().Username,
+		Language:   &context.Sender().LanguageCode,
+		TmdbApiKey: nil,
 	}
 
-	if err = database.DB.Create(&newUser).Error; err != nil {
+	if err := database.DB.Create(&newUser).Error; err != nil {
 		log.Printf("cant create user: %v", err.Error())
 		return context.Send(messages.InternalError)
 	}
 
-	err = context.Send(messages.Registered)
-	if err != nil {
-		log.Printf(err.Error())
+	return context.Send(messages.Registered, telebot.ModeMarkdown)
+}
+
+func (h *defaultHandler) GetToken(context telebot.Context) error {
+	userID := context.Sender().ID
+	_, active, token := cache.UserCache.Get(userID)
+
+	if active && !token.IsTokenWaiting {
+		return context.Send(messages.TokenAlreadyExists, telebot.ModeMarkdown)
+	}
+
+	return context.Send(messages.TokenInstructions, telebot.ModeMarkdown)
+}
+
+func (h *defaultHandler) HandleTextInput(context telebot.Context) error {
+	userID := context.Sender().ID
+	inputText := context.Message().Text
+
+	if !utils.TestApiToken(inputText) {
+		return context.Send(messages.TokenTestFailed, telebot.ModeMarkdown)
+	}
+
+	if err := database.DB.Model(&models.User{}).
+		Where("id = ?", userID).
+		Update("tmdb_api_key", inputText).Error; err != nil {
+		log.Print(err)
 		return context.Send(messages.InternalError)
 	}
 
-	return nil
+	cache.UserCache.UpdateTokenState(userID, false)
+	return context.Send(messages.TokenSaved, telebot.ModeMarkdown)
 }
 
 func (h *defaultHandler) DefaultCallback(context telebot.Context) error {
@@ -92,11 +112,10 @@ func (h *defaultHandler) DefaultCallback(context telebot.Context) error {
 	}
 
 	action := dataParts[1]
-	data := dataParts[2]
-
 	switch action {
 	case "start":
-		return h.handleStartCallback(context, data)
+		return h.handleStartCallback(context)
+
 	default:
 		return context.Respond(&telebot.CallbackResponse{Text: messages.UnknownAction})
 	}

@@ -10,6 +10,7 @@ import (
 	"movie-manager-bot/config"
 	"movie-manager-bot/dependencyInjection"
 	"movie-manager-bot/helpers/workers"
+	"movie-manager-bot/storage/cache"
 	"movie-manager-bot/storage/database"
 	"time"
 )
@@ -20,6 +21,7 @@ func main() {
 	api.NewClient()
 	log.Print("api client initialized")
 	database.DBConnect()
+	cache.NewUserCache()
 
 	settings := telebot.Settings{
 		Token:  config.Cfg.General.BotToken,

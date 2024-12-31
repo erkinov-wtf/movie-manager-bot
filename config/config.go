@@ -28,7 +28,7 @@ type Database struct {
 }
 
 type Endpoints struct {
-	Login           string
+	LoginUrl        string
 	BaseUrl         string
 	ImageUrl        string
 	SearchMovie     string
@@ -58,7 +58,7 @@ func MustLoad() {
 		Endpoints: Endpoints{
 			BaseUrl:     getEnv("BASE_URL"),
 			ImageUrl:    getEnv("IMAGE_URL"),
-			Login:       getEnv("LOGIN"),
+			LoginUrl:    getEnv("LOGIN_URL"),
 			SearchMovie: getEnv("SEARCH_MOVIE"),
 			GetMovie:    getEnv("GET_MOVIE"),
 			SearchTv:    getEnv("SEARCH_TV"),
