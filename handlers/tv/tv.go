@@ -346,11 +346,14 @@ func updateTVMessage(context telebot.Context, paginatedTV []tv.TV, currentPage, 
 	response, btn := paginators.GenerateTVResponse(paginatedTV, currentPage, maxPage, tvCount)
 	_, err := context.Bot().Edit(context.Message(), response, btn, telebot.ModeMarkdown)
 	if err != nil {
-		log.Printf("Failed to update tv message: %v", err)
+		log.Printf("Edit error: %v", err)
+		if strings.Contains(err.Error(), "message is not modified") {
+			return context.Respond(&telebot.CallbackResponse{Text: messages.NoChanges})
+		}
 		return context.Send(messages.InternalError)
 	}
 
-	return nil
+	return context.Respond(&telebot.CallbackResponse{Text: messages.PageUpdated})
 }
 
 func (h *tvHandler) TVCallback(context telebot.Context) error {

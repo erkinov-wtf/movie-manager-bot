@@ -255,11 +255,14 @@ func updateMovieMessage(context telebot.Context, paginatedMovies []movie.Movie, 
 	response, btn := paginators.GenerateMovieResponse(paginatedMovies, currentPage, maxPage, movieCount)
 	_, err := context.Bot().Edit(context.Message(), response, btn, telebot.ModeMarkdown)
 	if err != nil {
-		log.Printf("Failed to update movie message: %v", err)
+		log.Printf("Edit error: %v", err)
+		if strings.Contains(err.Error(), "message is not modified") {
+			return context.Respond(&telebot.CallbackResponse{Text: messages.NoChanges})
+		}
 		return context.Send(messages.InternalError)
 	}
 
-	return nil
+	return context.Respond(&telebot.CallbackResponse{Text: messages.PageUpdated})
 }
 
 func (h *movieHandler) MovieCallback(context telebot.Context) error {
