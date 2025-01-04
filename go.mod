@@ -1,4 +1,4 @@
-module movie-manager-bot
+module github.com/erkinov-wtf/movie-manager-bot
 
 go 1.22
 
