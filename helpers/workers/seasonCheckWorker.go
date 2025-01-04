@@ -4,14 +4,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/erkinov-wtf/movie-manager-bot/api/media/image"
+	"github.com/erkinov-wtf/movie-manager-bot/api/media/tv"
+	"github.com/erkinov-wtf/movie-manager-bot/models"
+	"gopkg.in/telebot.v3"
 	"log"
-	"movie-manager-bot/api/media/image"
-	"movie-manager-bot/api/media/tv"
 	"sync"
 	"time"
-
-	"gopkg.in/telebot.v3"
-	"movie-manager-bot/models"
 )
 
 func (c *WorkerApiClient) GetShowDetails(apiID int, userId int64) (*tv.TV, error) {

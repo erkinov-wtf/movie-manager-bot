@@ -1,10 +1,11 @@
 package middleware
 
 import (
+	"github.com/erkinov-wtf/movie-manager-bot/models"
+	"github.com/erkinov-wtf/movie-manager-bot/storage/cache"
+	"github.com/erkinov-wtf/movie-manager-bot/storage/database"
 	"gopkg.in/telebot.v3"
-	"movie-manager-bot/models"
-	"movie-manager-bot/storage/cache"
-	"movie-manager-bot/storage/database"
+
 	"time"
 )
 

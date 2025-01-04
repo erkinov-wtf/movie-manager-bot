@@ -3,14 +3,14 @@ package image
 import (
 	"bytes"
 	"fmt"
+	"github.com/erkinov-wtf/movie-manager-bot/api"
+	"github.com/erkinov-wtf/movie-manager-bot/config"
+	"github.com/erkinov-wtf/movie-manager-bot/storage/cache"
 	"image"
 	_ "image/jpeg"
 	_ "image/png"
 	"io"
 	"log"
-	"movie-manager-bot/api"
-	"movie-manager-bot/config"
-	"movie-manager-bot/storage/cache"
 	"net/http"
 	"time"
 

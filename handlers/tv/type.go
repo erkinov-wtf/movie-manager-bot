@@ -1,8 +1,6 @@
 package tv
 
-import (
-	"movie-manager-bot/interfaces"
-)
+import "github.com/erkinov-wtf/movie-manager-bot/interfaces"
 
 type tvHandler struct{}
 

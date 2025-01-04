@@ -3,15 +3,15 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/erkinov-wtf/movie-manager-bot/api"
+	"github.com/erkinov-wtf/movie-manager-bot/commands"
+	"github.com/erkinov-wtf/movie-manager-bot/config"
+	"github.com/erkinov-wtf/movie-manager-bot/dependencyInjection"
+	"github.com/erkinov-wtf/movie-manager-bot/helpers/workers"
+	"github.com/erkinov-wtf/movie-manager-bot/storage/cache"
+	"github.com/erkinov-wtf/movie-manager-bot/storage/database"
 	"gopkg.in/telebot.v3"
 	"log"
-	"movie-manager-bot/api"
-	"movie-manager-bot/commands"
-	"movie-manager-bot/config"
-	"movie-manager-bot/dependencyInjection"
-	"movie-manager-bot/helpers/workers"
-	"movie-manager-bot/storage/cache"
-	"movie-manager-bot/storage/database"
 	"time"
 )
 

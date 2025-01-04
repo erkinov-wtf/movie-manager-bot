@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/erkinov-wtf/movie-manager-bot/config"
 	"io"
 	"log"
-	"movie-manager-bot/config"
 	"net/http"
 	"time"
 )

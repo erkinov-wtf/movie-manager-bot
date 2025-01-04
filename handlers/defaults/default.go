@@ -3,14 +3,15 @@ package defaults
 import (
 	"errors"
 	"fmt"
+	"github.com/erkinov-wtf/movie-manager-bot/helpers/messages"
+	"github.com/erkinov-wtf/movie-manager-bot/helpers/utils"
+	"github.com/erkinov-wtf/movie-manager-bot/models"
+	"github.com/erkinov-wtf/movie-manager-bot/storage/cache"
+	"github.com/erkinov-wtf/movie-manager-bot/storage/database"
 	"gopkg.in/telebot.v3"
 	"gorm.io/gorm"
 	"log"
-	"movie-manager-bot/helpers/messages"
-	"movie-manager-bot/helpers/utils"
-	"movie-manager-bot/models"
-	"movie-manager-bot/storage/cache"
-	"movie-manager-bot/storage/database"
+
 	"strings"
 )
 

@@ -2,7 +2,7 @@ package api
 
 import (
 	"crypto/tls"
-	"movie-manager-bot/config"
+	"github.com/erkinov-wtf/movie-manager-bot/config"
 	"net/http"
 	"time"
 )

@@ -1,9 +1,9 @@
 package utils
 
 import (
+	"github.com/erkinov-wtf/movie-manager-bot/api"
+	"github.com/erkinov-wtf/movie-manager-bot/storage/cache"
 	"log"
-	"movie-manager-bot/api"
-	"movie-manager-bot/storage/cache"
 	"net/url"
 )
 

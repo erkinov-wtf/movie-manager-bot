@@ -2,14 +2,15 @@ package watchlist
 
 import (
 	"fmt"
+	"github.com/erkinov-wtf/movie-manager-bot/api/media/movie"
+	"github.com/erkinov-wtf/movie-manager-bot/api/media/tv"
+	"github.com/erkinov-wtf/movie-manager-bot/helpers/messages"
+	"github.com/erkinov-wtf/movie-manager-bot/helpers/paginators"
+	"github.com/erkinov-wtf/movie-manager-bot/models"
+	"github.com/erkinov-wtf/movie-manager-bot/storage/database"
 	"gopkg.in/telebot.v3"
 	"log"
-	"movie-manager-bot/api/media/movie"
-	"movie-manager-bot/api/media/tv"
-	"movie-manager-bot/helpers/messages"
-	"movie-manager-bot/helpers/paginators"
-	"movie-manager-bot/models"
-	"movie-manager-bot/storage/database"
+
 	"strconv"
 	"strings"
 )

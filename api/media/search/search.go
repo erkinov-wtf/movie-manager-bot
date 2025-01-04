@@ -3,10 +3,10 @@ package search
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/erkinov-wtf/movie-manager-bot/api"
+	"github.com/erkinov-wtf/movie-manager-bot/config"
+	"github.com/erkinov-wtf/movie-manager-bot/helpers/utils"
 	"io"
-	"movie-manager-bot/api"
-	"movie-manager-bot/config"
-	"movie-manager-bot/helpers/utils"
 	"net/http"
 )
 

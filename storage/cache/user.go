@@ -1,9 +1,9 @@
 package cache
 
 import (
+	"github.com/erkinov-wtf/movie-manager-bot/models"
+	"github.com/erkinov-wtf/movie-manager-bot/storage/database"
 	"log"
-	"movie-manager-bot/models"
-	"movie-manager-bot/storage/database"
 	"sync"
 	"time"
 )

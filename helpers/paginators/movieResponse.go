@@ -2,8 +2,8 @@ package paginators
 
 import (
 	"fmt"
+	movieType "github.com/erkinov-wtf/movie-manager-bot/api/media/movie"
 	"gopkg.in/telebot.v3"
-	movieType "movie-manager-bot/api/media/movie"
 )
 
 func GenerateMovieResponse(paginatedMovies []movieType.Movie, currentPage, maxPage, movieCount int) (string, *telebot.ReplyMarkup) {

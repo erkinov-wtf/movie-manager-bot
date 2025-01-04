@@ -1,12 +1,12 @@
 package dependencyInjection
 
 import (
-	"movie-manager-bot/handlers/defaults"
-	"movie-manager-bot/handlers/info"
-	"movie-manager-bot/handlers/movie"
-	"movie-manager-bot/handlers/tv"
-	"movie-manager-bot/handlers/watchlist"
-	"movie-manager-bot/interfaces"
+	"github.com/erkinov-wtf/movie-manager-bot/handlers/defaults"
+	"github.com/erkinov-wtf/movie-manager-bot/handlers/info"
+	"github.com/erkinov-wtf/movie-manager-bot/handlers/movie"
+	"github.com/erkinov-wtf/movie-manager-bot/handlers/tv"
+	"github.com/erkinov-wtf/movie-manager-bot/handlers/watchlist"
+	"github.com/erkinov-wtf/movie-manager-bot/interfaces"
 )
 
 type Container struct {

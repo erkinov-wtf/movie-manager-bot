@@ -2,8 +2,8 @@ package paginators
 
 import (
 	"fmt"
+	"github.com/erkinov-wtf/movie-manager-bot/models"
 	"gopkg.in/telebot.v3"
-	"movie-manager-bot/models"
 )
 
 func GenerateWatchlistResponse(paginatedWatchlists *[]models.Watchlist, currentPage, maxPage, watchlistCount int, watchlistType string) (string, *telebot.ReplyMarkup) {

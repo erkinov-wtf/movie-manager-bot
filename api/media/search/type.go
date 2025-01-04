@@ -1,8 +1,8 @@
 package search
 
 import (
-	"movie-manager-bot/api/media/movie"
-	"movie-manager-bot/api/media/tv"
+	"github.com/erkinov-wtf/movie-manager-bot/api/media/movie"
+	"github.com/erkinov-wtf/movie-manager-bot/api/media/tv"
 )
 
 type MovieSearch struct {

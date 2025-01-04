@@ -1,11 +1,11 @@
 package workers
 
 import (
+	"github.com/erkinov-wtf/movie-manager-bot/api/media/tv"
 	"golang.org/x/time/rate"
 	"gopkg.in/telebot.v3"
 	"gorm.io/gorm"
 	"log"
-	"movie-manager-bot/api/media/tv"
 )
 
 type TVShowChecker struct {

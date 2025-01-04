@@ -2,11 +2,11 @@ package database
 
 import (
 	"fmt"
+	"github.com/erkinov-wtf/movie-manager-bot/config"
+	"github.com/erkinov-wtf/movie-manager-bot/models"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"log"
-	"movie-manager-bot/config"
-	"movie-manager-bot/models"
 )
 
 var DB *gorm.DB

@@ -1,6 +1,6 @@
 package paginators
 
-import "movie-manager-bot/models"
+import "github.com/erkinov-wtf/movie-manager-bot/models"
 
 func PaginateWatchlist(watchlist []models.Watchlist, page int) []models.Watchlist {
 	const itemsPerPage = 3

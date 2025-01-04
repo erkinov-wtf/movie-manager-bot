@@ -1,7 +1,7 @@
 package info
 
 import (
-	"movie-manager-bot/interfaces"
+	"github.com/erkinov-wtf/movie-manager-bot/interfaces"
 )
 
 type infoHandler struct{}

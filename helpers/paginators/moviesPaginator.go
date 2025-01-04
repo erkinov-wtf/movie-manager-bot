@@ -1,8 +1,8 @@
 package paginators
 
 import (
-	movieType "movie-manager-bot/api/media/movie"
-	"movie-manager-bot/storage/cache"
+	movieType "github.com/erkinov-wtf/movie-manager-bot/api/media/movie"
+	"github.com/erkinov-wtf/movie-manager-bot/storage/cache"
 )
 
 func PaginateMovies(moviesCache *cache.Cache, page, movieCount int) []movieType.Movie {

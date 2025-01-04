@@ -2,11 +2,11 @@ package commands
 
 import (
 	"fmt"
+	"github.com/erkinov-wtf/movie-manager-bot/dependencyInjection"
+	"github.com/erkinov-wtf/movie-manager-bot/middleware"
+	"github.com/erkinov-wtf/movie-manager-bot/storage/cache"
 	"gopkg.in/telebot.v3"
 	"log"
-	"movie-manager-bot/dependencyInjection"
-	"movie-manager-bot/middleware"
-	"movie-manager-bot/storage/cache"
 	"strings"
 	"time"
 )

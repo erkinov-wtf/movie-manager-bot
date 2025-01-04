@@ -1,8 +1,8 @@
 package paginators
 
 import (
-	"movie-manager-bot/api/media/tv"
-	"movie-manager-bot/storage/cache"
+	"github.com/erkinov-wtf/movie-manager-bot/api/media/tv"
+	"github.com/erkinov-wtf/movie-manager-bot/storage/cache"
 )
 
 func PaginateTV(tvCache *cache.Cache, page, tvCount int) []tv.TV {
