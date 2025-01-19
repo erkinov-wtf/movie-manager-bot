@@ -3,12 +3,14 @@ package workers
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/erkinov-wtf/movie-manager-bot/api/media/image"
 	"github.com/erkinov-wtf/movie-manager-bot/api/media/tv"
 	"github.com/erkinov-wtf/movie-manager-bot/models"
 	"gopkg.in/telebot.v3"
 	"log"
+	"os"
 	"sync"
 	"time"
 )
@@ -37,6 +39,29 @@ func (c *WorkerApiClient) GetShowDetails(apiID int, userId int64) (*tv.TV, error
 
 func (c *TVShowChecker) StartChecking(ctx context.Context, checkInterval time.Duration) {
 	log.Printf("[Worker] Starting TV show checker with interval: %v", checkInterval)
+
+	state, err := c.loadState()
+	if err != nil {
+		log.Printf("[Worker] Failed to load state: %v", err)
+	}
+
+	var initialDelay time.Duration
+	if !state.LastCheckTime.IsZero() {
+		nextCheckTime := state.LastCheckTime.Add(checkInterval)
+		if time.Now().Before(nextCheckTime) {
+			initialDelay = time.Until(nextCheckTime)
+		}
+	}
+
+	if initialDelay > 0 {
+		log.Printf("[Worker] Waiting %v until next check", initialDelay)
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(initialDelay):
+		}
+	}
+
 	ticker := time.NewTicker(checkInterval)
 	defer ticker.Stop()
 
@@ -49,6 +74,12 @@ func (c *TVShowChecker) StartChecking(ctx context.Context, checkInterval time.Du
 			log.Printf("[Worker] Starting check cycle")
 			start := time.Now()
 			c.checkAllShows()
+
+			if err = c.saveState(&CheckerState{
+				LastCheckTime: start}); err != nil {
+				log.Printf("[Worker] Failed to save state: %v", err)
+			}
+
 			log.Printf("[Worker] Completed check cycle in %v", time.Since(start))
 		}
 	}
@@ -180,4 +211,37 @@ func (c *TVShowChecker) notifyUser(user models.User, watched *models.TVShows, sh
 		return
 	}
 	return
+}
+
+func (c *TVShowChecker) loadState() (*CheckerState, error) {
+	c.stateMux.Lock()
+	defer c.stateMux.Unlock()
+
+	state := &CheckerState{}
+
+	data, err := os.ReadFile(c.statePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return state, nil
+		}
+		return nil, err
+	}
+
+	if err = json.Unmarshal(data, state); err != nil {
+		return nil, err
+	}
+
+	return state, nil
+}
+
+func (c *TVShowChecker) saveState(state *CheckerState) error {
+	c.stateMux.Lock()
+	defer c.stateMux.Unlock()
+
+	data, err := json.Marshal(state)
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(c.statePath, data, 0644)
 }
