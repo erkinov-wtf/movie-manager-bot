@@ -1,6 +1,7 @@
 package tv
 
 import (
+	"errors"
 	"fmt"
 	"github.com/erkinov-wtf/movie-manager-bot/api/media/search"
 	"github.com/erkinov-wtf/movie-manager-bot/api/media/tv"
@@ -10,6 +11,7 @@ import (
 	"github.com/erkinov-wtf/movie-manager-bot/storage/cache"
 	"github.com/erkinov-wtf/movie-manager-bot/storage/database"
 	"gopkg.in/telebot.v3"
+	"gorm.io/gorm"
 	"log"
 
 	"strconv"
@@ -175,7 +177,7 @@ func (h *tvHandler) handleWatched(context telebot.Context, data string) error {
 		Select("seasons").
 		Where("api_id = ? AND user_id = ?", selectedTvShow[userID].ID, userID).
 		Scan(&watchedSeasons).Error; err != nil {
-		if err.Error() != "record not found" {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			log.Printf("Database error: %v", err)
 			return context.Send(messages.InternalError)
 		}
@@ -237,7 +239,7 @@ func (h *tvHandler) handleWatched(context telebot.Context, data string) error {
 
 	tx.Commit()
 
-	_, err = context.Bot().Send(context.Chat(), fmt.Sprintf("The TV Show added as watched with below data:\nName: %v\nSeasons: %v\nEpisodes: %v\nRuntime: %v", selectedTvShow[userID].Name, seasonNum, episodes, runtime), telebot.ModeMarkdown)
+	_, err = context.Bot().Send(context.Chat(), fmt.Sprintf("The TV Show added as watched with below data:\nName: %v\nSeasons: %v\nEpisodes: %v\nRuntime: %v minutes", selectedTvShow[userID].Name, seasonNum, episodes, runtime), telebot.ModeMarkdown)
 	if err != nil {
 		log.Print(err)
 		return context.Send(messages.InternalError)

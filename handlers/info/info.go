@@ -62,7 +62,7 @@ func (i *infoHandler) handleTVDetails(context telebot.Context, msgId string) err
 
 📊 *Statistics:*
 └ 📝 Shows Watched: *%d*
-└ 🕙 Total Time Wasted: *%d*
+└ 🕙 Total Time Wasted: *%d* minutes
 └ ⌛️ Time Breakdown: *%s*
 
 🎯 *Achievement:* You've spent *%d* hours watching TV shows! Keep ruining your precious time! 👍`,
@@ -104,7 +104,7 @@ func (i *infoHandler) handleMovieDetails(context telebot.Context, msgId string) 
 
 📊 *Statistics:*
 └ 📝 Movies Watched: *%d*
-└ 🕙 Total Time Wasted: *%d*
+└ 🕙 Total Time Wasted: *%d* minutes
 └ ⌛️ Time Breakdown: *%s*
 
 🎯 *Achievement:* You've spent *%d* hours watching movies! Keep ruining your precious time! 👍`,
@@ -165,18 +165,18 @@ func (i *infoHandler) handleFullDetails(context telebot.Context, data string) er
 🎥 *Movies - Total Info*
 📊 *Statistics:*
 └ 📝 Movies Watched: *%d*
-└ 🕙 Total Time Wasted: *%d*
+└ 🕙 Total Time Wasted: *%d* minutes
 └ ⌛️ Time Breakdown: *%s*
 
 📺 *TV Shows - Total Info*
 📊 *Statistics:*
 └ 📝 Shows Watched: *%d*
-└ 🕙 Total Time Wasted: *%d*
+└ 🕙 Total Time Wasted: *%d* minutes
 └ ⌛️ Time Breakdown: *%s*
 
 🎯 *Total Info:*
 └ 📝 Total Movies + TV Shows Watched: *%d*
-└ 🕙 Total Time Wasted: *%d*
+└ 🕙 Total Time Wasted: *%d* minutes
 └ ⌛️ Total Time Breakdown: *%s*
 
 🎯 *Achievement:* You've spent *%d* hours watching movies and TV shows! Keep ruining your precious time! 👍`,
