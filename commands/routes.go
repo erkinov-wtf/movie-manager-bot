@@ -42,6 +42,7 @@ func SetupDefaultRoutes(bot *telebot.Bot, container *dependencyInjection.Contain
 
 		// Send debug response to user
 		debugMessage := fmt.Sprintf("Hello %s! Here is your debug info:\n\n", user.FirstName)
+		debugMessage += fmt.Sprintf("Bot Version: %v\n", "v0.1.2")
 		debugMessage += fmt.Sprintf("User ID: %d\nUsername: %s\nFirst Name: %s\nLast Name: %s\n",
 			user.ID, user.Username, user.FirstName, user.LastName)
 		debugMessage += fmt.Sprintf("Message Text: %s\nMessage Payload: %s\nMessage Date: %s\n",
