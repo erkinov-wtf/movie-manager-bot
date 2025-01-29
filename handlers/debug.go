@@ -5,40 +5,48 @@ import (
 	"fmt"
 	"github.com/erkinov-wtf/movie-manager-bot/storage/cache"
 	"gopkg.in/telebot.v3"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"time"
 )
 
-type VersionResponse struct {
-	Version string `json:"Version"`
-	Time    string `json:"Time"`
+type GitHubTag struct {
+	Name string `json:"name"`
 }
 
-func getLatestBotVersion() VersionResponse {
-	url := "https://proxy.golang.org/github.com/erkinov-wtf/movie-manager-bot/@latest"
+func getLatestBotVersion() string {
+	url := "https://api.github.com/repos/erkinov-wtf/movie-manager-bot/tags"
 
-	// Make HTTP request
 	resp, err := http.Get(url)
 	if err != nil {
-		log.Println("Failed to fetch latest version:", err)
-		return VersionResponse{
-			Version: "Unknown",
-			Time:    time.Now().String(),
-		}
+		log.Println("Failed to fetch tags from GitHub:", err)
+		return "Unknown"
 	}
 	defer resp.Body.Close()
 
-	var responseData VersionResponse
-	err = json.NewDecoder(resp.Body).Decode(&responseData)
-	if err != nil {
-		return VersionResponse{
-			Version: "Unknown",
-			Time:    time.Now().String(),
-		}
+	if resp.StatusCode != http.StatusOK {
+		log.Println("GitHub API returned non-200 status:", resp.StatusCode)
+		return "Unknown"
 	}
 
-	return responseData
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Println("Failed to read response body:", err)
+		return "Unknown"
+	}
+
+	var tags []GitHubTag
+	if err := json.Unmarshal(body, &tags); err != nil {
+		log.Println("Failed to parse GitHub tags JSON:", err)
+		return "Unknown"
+	}
+
+	if len(tags) == 0 {
+		return "Unknown"
+	}
+
+	return tags[0].Name
 }
 
 // DebugMessage function
@@ -55,7 +63,6 @@ func DebugMessage(context telebot.Context) error {
 		"*🛠 Debug Info*\n"+
 			"——————————————\n"+
 			"*🔹 Bot Version:* `%s`\n"+
-			"*🔹 Bot Deployed Time:* `%s`\n"+
 			"*🔹 Timestamp:* `%s`\n"+
 			"\n"+
 			"*👤 User Info:*\n"+
@@ -69,7 +76,7 @@ func DebugMessage(context telebot.Context) error {
 			"• *Payload:* `%s`\n"+
 			"• *Date:* `%s`\n"+
 			"——————————————\n",
-		botVersion.Version, botVersion.Time, time.Now().Format("2006-01-02 15:04:05"),
+		botVersion, time.Now().Format("2006-01-02 15:04:05"),
 		user.ID, user.Username, user.FirstName, user.LastName,
 		message.Text, message.Payload, message.Time().Format("2006-01-02 15:04:05"),
 	)
