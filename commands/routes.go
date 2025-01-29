@@ -3,12 +3,12 @@ package commands
 import (
 	"fmt"
 	"github.com/erkinov-wtf/movie-manager-bot/dependencyInjection"
+	"github.com/erkinov-wtf/movie-manager-bot/handlers"
 	"github.com/erkinov-wtf/movie-manager-bot/middleware"
 	"github.com/erkinov-wtf/movie-manager-bot/storage/cache"
 	"gopkg.in/telebot.v3"
 	"log"
 	"strings"
-	"time"
 )
 
 func SetupDefaultRoutes(bot *telebot.Bot, container *dependencyInjection.Container) {
@@ -27,35 +27,7 @@ func SetupDefaultRoutes(bot *telebot.Bot, container *dependencyInjection.Contain
 	bot.Handle("/start", container.DefaultHandler.Start)
 	bot.Handle("/token", middleware.RequireRegistration(container.DefaultHandler.GetToken))
 
-	// for dev debugging only
-	bot.Handle("/debug", func(context telebot.Context) error {
-		// Collect user info
-		user := context.Sender()
-		message := context.Message()
-
-		// Log detailed user and message info
-		log.Printf("Debug Info - Timestamp: %v", time.Now())
-		log.Printf("User Info: ID=%d, Username=%s, FirstName=%s, LastName=%s",
-			user.ID, user.Username, user.FirstName, user.LastName)
-		log.Printf("Message Info: Text=%s, Payload=%s, Date=%s",
-			message.Text, message.Payload, message.Time().Format("2006-01-02 15:04:05"))
-
-		// Send debug response to user
-		debugMessage := fmt.Sprintf("Hello %s! Here is your debug info:\n\n", user.FirstName)
-		debugMessage += fmt.Sprintf("Bot Version: %v\n", "v0.1.2")
-		debugMessage += fmt.Sprintf("User ID: %d\nUsername: %s\nFirst Name: %s\nLast Name: %s\n",
-			user.ID, user.Username, user.FirstName, user.LastName)
-		debugMessage += fmt.Sprintf("Message Text: %s\nMessage Payload: %s\nMessage Date: %s\n",
-			message.Text, message.Payload, message.Time().Format("2006-01-02 15:04:05"))
-		debugMessage += fmt.Sprint("============\n")
-
-		//cache data retrieval
-		cacheValue, cacheExpired, token := cache.UserCache.Get(context.Sender().ID)
-		debugMessage += fmt.Sprintf("Current User Cache \nCache value: %v\nIs Cache Active: %v\nIs Token Waiting: %v\nToken value: %v\n",
-			cacheValue, cacheExpired, token.IsTokenWaiting, token.Token)
-
-		return context.Send(debugMessage)
-	})
+	bot.Handle("/debug", handlers.DebugMessage)
 
 }
 
