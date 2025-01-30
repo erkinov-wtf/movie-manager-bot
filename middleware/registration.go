@@ -11,7 +11,7 @@ import (
 
 func IsRegisteredUser(c telebot.Context) bool {
 	userID := c.Sender().ID
-	if registered, found, _ := cache.UserCache.Get(userID); found && registered {
+	if isActive, userCache := cache.UserCache.Get(userID); isActive && userCache.Value {
 		return true
 	}
 

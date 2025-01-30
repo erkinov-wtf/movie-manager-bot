@@ -9,9 +9,10 @@ import (
 )
 
 type UserCacheItem struct {
-	Value      bool
-	ExpireTime time.Time
-	ApiToken   ApiToken
+	Value       bool
+	ExpireTime  time.Time
+	ApiToken    ApiToken
+	SearchState SearchState
 }
 
 type UserCacheData struct {
@@ -22,6 +23,11 @@ type UserCacheData struct {
 type ApiToken struct {
 	IsTokenWaiting bool
 	Token          string
+}
+
+type SearchState struct {
+	IsMovieSearch  bool
+	IsTVShowSearch bool
 }
 
 var UserCache UserCacheData
@@ -40,7 +46,15 @@ func (c *UserCacheData) Set(userID int64, value bool, expiration time.Duration, 
 	c.items[userID] = UserCacheItem{
 		Value:      value,
 		ExpireTime: time.Now().Add(expiration),
-		ApiToken:   ApiToken{IsTokenWaiting: isTokenWaiting, Token: tokenDb},
+		ApiToken: ApiToken{
+			IsTokenWaiting: isTokenWaiting,
+			Token:          tokenDb,
+		},
+
+		SearchState: SearchState{
+			IsMovieSearch:  false,
+			IsTVShowSearch: false,
+		},
 	}
 }
 
@@ -55,16 +69,16 @@ func (c *UserCacheData) UpdateTokenState(userID int64, isTokenWaiting bool) {
 }
 
 // Get retrieves a user from the cache
-func (c *UserCacheData) Get(userID int64) (cacheValue, isActive bool, apiToken ApiToken) {
+func (c *UserCacheData) Get(userID int64) (isActive bool, data *UserCacheItem) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	item, found := c.items[userID]
-	if !found || item.ExpireTime.Before(time.Now()) {
-		return false, false, item.ApiToken
+	userCache, found := c.items[userID]
+	if !found || userCache.ExpireTime.Before(time.Now()) {
+		return false, &userCache
 	}
 
-	return item.Value, true, item.ApiToken
+	return true, &userCache
 }
 
 // Clear removes all items from the cache

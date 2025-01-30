@@ -14,8 +14,8 @@ import (
 func SetupDefaultRoutes(bot *telebot.Bot, container *dependencyInjection.Container) {
 	bot.Handle(telebot.OnText, func(context telebot.Context) error {
 		// Checking if bot waits for user's api key input
-		_, active, token := cache.UserCache.Get(context.Sender().ID)
-		if active && token.IsTokenWaiting {
+		isActive, userCache := cache.UserCache.Get(context.Sender().ID)
+		if isActive && userCache.ApiToken.IsTokenWaiting {
 			log.Print("redirecting to api text input")
 			return container.DefaultHandler.HandleTextInput(context)
 		}

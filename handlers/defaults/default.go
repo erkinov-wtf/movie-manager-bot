@@ -70,9 +70,9 @@ func (*defaultHandler) handleStartCallback(context telebot.Context) error {
 
 func (h *defaultHandler) GetToken(context telebot.Context) error {
 	userID := context.Sender().ID
-	_, active, token := cache.UserCache.Get(userID)
+	isActive, userCache := cache.UserCache.Get(userID)
 
-	if active && !token.IsTokenWaiting {
+	if isActive && !userCache.ApiToken.IsTokenWaiting {
 		return context.Send(messages.TokenAlreadyExists, telebot.ModeMarkdown)
 	}
 

@@ -82,15 +82,17 @@ func DebugMessage(context telebot.Context) error {
 	)
 
 	// Retrieve cache data
-	cacheValue, cacheExpired, token := cache.UserCache.Get(context.Sender().ID)
+	isActive, userCache := cache.UserCache.Get(context.Sender().ID)
 	debugMessage += fmt.Sprintf(
 		"*📦 Cache Info:*\n"+
-			"• *Cache Value:* `%v`\n"+
 			"• *Cache Active:* `%v`\n"+
+			"• *Cache Value:* `%v`\n"+
 			"• *Token Waiting:* `%v`\n"+
 			"• *Token:* `%v`\n"+
+			"• *Movie Search:* `%v`\n"+
+			"• *TV Show Search:* `%v`\n"+
 			"——————————————",
-		cacheValue, cacheExpired, token.IsTokenWaiting, token.Token,
+		isActive, userCache.Value, userCache.ApiToken.IsTokenWaiting, userCache.ApiToken.Token, userCache.SearchState.IsMovieSearch, userCache.SearchState.IsTVShowSearch,
 	)
 
 	// Send message with Markdown formatting

@@ -15,10 +15,10 @@ func MakeUrl(endpoint string, queryParams map[string]string, userId int64) strin
 
 	base.Path += endpoint
 
-	_, _, token := cache.UserCache.Get(userId)
+	_, userCache := cache.UserCache.Get(userId)
 
 	params := url.Values{}
-	params.Add("api_key", token.Token)
+	params.Add("api_key", userCache.ApiToken.Token)
 
 	for key, value := range queryParams {
 		params.Add(key, value)
