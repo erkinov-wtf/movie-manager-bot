@@ -27,7 +27,7 @@ var (
 )
 
 func (*tvHandler) SearchTV(context telebot.Context) error {
-	userID := context.Sender().ID
+	userId := context.Sender().ID
 	log.Print(messages.TVShowCommand)
 
 	if context.Message().Payload == "" {
@@ -40,7 +40,7 @@ func (*tvHandler) SearchTV(context telebot.Context) error {
 		return context.Send(messages.InternalError)
 	}
 
-	tvData, err := search.SearchTV(context.Message().Payload, userID)
+	tvData, err := search.SearchTV(context.Message().Payload, userId)
 	if err != nil {
 		log.Print(err)
 		return context.Send(messages.InternalError)
@@ -57,18 +57,18 @@ func (*tvHandler) SearchTV(context telebot.Context) error {
 	}
 
 	// Initialize user-specific cache and data
-	tvCache[userID] = cache.NewCache()
-	pagePointer[userID] = new(int)
-	*pagePointer[userID] = 1
-	tvCount[userID] = len(tvData.Results)
-	maxPage[userID] = (tvCount[userID] + 2) / 3 // Rounded max page
+	tvCache[userId] = cache.NewCache()
+	pagePointer[userId] = new(int)
+	*pagePointer[userId] = 1
+	tvCount[userId] = len(tvData.Results)
+	maxPage[userId] = (tvCount[userId] + 2) / 3 // Rounded max page
 
 	for i, result := range tvData.Results {
-		tvCache[userID].Set(i+1, result)
+		tvCache[userId].Set(i+1, result)
 	}
 
-	paginatedTV := paginators.PaginateTV(tvCache[userID], 1, tvCount[userID])
-	response, btn := paginators.GenerateTVResponse(paginatedTV, *pagePointer[userID], maxPage[userID], tvCount[userID])
+	paginatedTV := paginators.PaginateTV(tvCache[userId], 1, tvCount[userId])
+	response, btn := paginators.GenerateTVResponse(paginatedTV, *pagePointer[userId], maxPage[userId], tvCount[userId])
 	_, err = context.Bot().Edit(msg, response, btn, telebot.ModeMarkdown)
 	if err != nil {
 		log.Print(err)
@@ -101,13 +101,13 @@ func (h *tvHandler) handleTVDetails(context telebot.Context, data string) error 
 }
 
 func (h *tvHandler) handleSelectSeasons(context telebot.Context, tvId string) error {
-	userID := context.Sender().ID
+	userId := context.Sender().ID
 	TVId, _ := strconv.Atoi(tvId)
 
 	var watchedSeasons int = 0
 	if err := database.DB.Model(&models.TVShows{}).
 		Select("seasons").
-		Where("api_id = ? AND user_id = ?", TVId, userID).
+		Where("api_id = ? AND user_id = ?", TVId, userId).
 		Scan(&watchedSeasons).Error; err != nil {
 		if err.Error() != "record not found" {
 			log.Printf("Database error: %v", err)
@@ -122,10 +122,10 @@ func (h *tvHandler) handleSelectSeasons(context telebot.Context, tvId string) er
 	}
 
 	if watchedSeasons > 0 {
-		log.Printf("userId %v already watched tv show name %s, id %v", userID, tvShow.Name, tvShow.ID)
+		log.Printf("userId %v already watched tv show name %s, id %v", userId, tvShow.Name, tvShow.ID)
 	}
 
-	selectedTvShow[userID] = tvShow
+	selectedTvShow[userId] = tvShow
 
 	btn := &telebot.ReplyMarkup{}
 	var btnRows []telebot.Row
@@ -135,7 +135,7 @@ func (h *tvHandler) handleSelectSeasons(context telebot.Context, tvId string) er
 		5: "Season 5️⃣", 6: "Season 6️⃣", 7: "Season 7️⃣", 8: "Season 8️⃣", 9: "Season 9️⃣",
 	}
 
-	for i := 1; i <= int(selectedTvShow[userID].Seasons); i++ {
+	for i := 1; i <= int(selectedTvShow[userId].Seasons); i++ {
 		emoji := emojis[i]
 		if emoji == "" {
 			emoji = fmt.Sprintf("Season %d", i)
@@ -171,11 +171,11 @@ func (h *tvHandler) handleWatched(context telebot.Context, data string) error {
 		return context.Send(messages.InternalError)
 	}
 
-	userID := context.Sender().ID
+	userId := context.Sender().ID
 	var watchedSeasons int = 0
 	if err := tx.Model(&models.TVShows{}).
 		Select("seasons").
-		Where("api_id = ? AND user_id = ?", selectedTvShow[userID].ID, userID).
+		Where("api_id = ? AND user_id = ?", selectedTvShow[userId].ID, userId).
 		Scan(&watchedSeasons).Error; err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			log.Printf("Database error: %v", err)
@@ -195,7 +195,7 @@ func (h *tvHandler) handleWatched(context telebot.Context, data string) error {
 
 	var episodes, runtime int64
 	for i := 1; i <= seasonNum; i++ {
-		tvSeason, err := tv.GetSeason(int(selectedTvShow[userID].ID), i, userID)
+		tvSeason, err := tv.GetSeason(int(selectedTvShow[userId].ID), i, userId)
 		if err != nil {
 			log.Print(err.Error())
 			return context.Send(messages.InternalError)
@@ -204,23 +204,23 @@ func (h *tvHandler) handleWatched(context telebot.Context, data string) error {
 		for _, episode := range tvSeason.Episodes {
 			episodes++
 			runtime += episode.Runtime
-			log.Printf("TV Show: %v, Season: %v, Episode: %v, Runtime: %v", selectedTvShow[userID].ID, i, episode.EpisodeNumber, episode.Runtime)
+			log.Printf("TV Show: %v, Season: %v, Episode: %v, Runtime: %v", selectedTvShow[userId].ID, i, episode.EpisodeNumber, episode.Runtime)
 		}
 	}
 
 	newTv := models.TVShows{
-		UserID:   userID,
-		ApiID:    selectedTvShow[userID].ID,
-		Name:     selectedTvShow[userID].Name,
+		UserID:   userId,
+		ApiID:    selectedTvShow[userId].ID,
+		Name:     selectedTvShow[userId].Name,
 		Seasons:  int64(seasonNum),
 		Episodes: episodes,
 		Runtime:  runtime,
-		Status:   selectedTvShow[userID].Status,
+		Status:   selectedTvShow[userId].Status,
 	}
 
 	if watchedSeasons > 0 {
 		if err = tx.Model(&models.TVShows{}).
-			Where("api_id = ? AND user_id = ?", selectedTvShow[userID].ID, userID).
+			Where("api_id = ? AND user_id = ?", selectedTvShow[userId].ID, userId).
 			Updates(models.TVShows{Seasons: newTv.Seasons, Episodes: newTv.Episodes, Runtime: newTv.Runtime}).Error; err != nil {
 			log.Printf("cant update existing tv show data: %v", err.Error())
 			return context.Send(messages.InternalError)
@@ -232,14 +232,14 @@ func (h *tvHandler) handleWatched(context telebot.Context, data string) error {
 		}
 	}
 
-	if err = tx.Where("show_api_id = ? AND user_id = ?", selectedTvShow[userID].ID, userID).Delete(&models.Watchlist{}).Error; err != nil {
+	if err = tx.Where("show_api_id = ? AND user_id = ?", selectedTvShow[userId].ID, userId).Delete(&models.Watchlist{}).Error; err != nil {
 		log.Print(err)
 		return context.Send("Something went wrong")
 	}
 
 	tx.Commit()
 
-	_, err = context.Bot().Send(context.Chat(), fmt.Sprintf("The TV Show added as watched with below data:\nName: %v\nSeasons: %v\nEpisodes: %v\nRuntime: %v minutes", selectedTvShow[userID].Name, seasonNum, episodes, runtime), telebot.ModeMarkdown)
+	_, err = context.Bot().Send(context.Chat(), fmt.Sprintf("The TV Show added as watched with below data:\nName: %v\nSeasons: %v\nEpisodes: %v\nRuntime: %v minutes", selectedTvShow[userId].Name, seasonNum, episodes, runtime), telebot.ModeMarkdown)
 	if err != nil {
 		log.Print(err)
 		return context.Send(messages.InternalError)
@@ -284,9 +284,9 @@ func (h *tvHandler) handleWatchlist(context telebot.Context, tvId string) error 
 }
 
 func (h *tvHandler) handleBackToPagination(context telebot.Context) error {
-	userID := context.Sender().ID
+	userId := context.Sender().ID
 
-	if _, ok := tvCache[userID]; !ok {
+	if _, ok := tvCache[userId]; !ok {
 		return context.Respond(&telebot.CallbackResponse{Text: messages.NoSearchResult})
 	}
 
@@ -296,8 +296,8 @@ func (h *tvHandler) handleBackToPagination(context telebot.Context) error {
 		return context.Send(messages.InternalError)
 	}
 
-	paginatedTV := paginators.PaginateTV(tvCache[userID], *pagePointer[userID], tvCount[userID])
-	response, btn := paginators.GenerateTVResponse(paginatedTV, *pagePointer[userID], maxPage[userID], tvCount[userID])
+	paginatedTV := paginators.PaginateTV(tvCache[userId], *pagePointer[userId], tvCount[userId])
+	response, btn := paginators.GenerateTVResponse(paginatedTV, *pagePointer[userId], maxPage[userId], tvCount[userId])
 	_, err = context.Bot().Send(context.Chat(), response, btn, telebot.ModeMarkdown)
 	if err != nil {
 		log.Print(err)
@@ -314,35 +314,35 @@ func (h *tvHandler) handleBackToPagination(context telebot.Context) error {
 }
 
 func (h *tvHandler) handleNextPage(context telebot.Context) error {
-	userID := context.Sender().ID
+	userId := context.Sender().ID
 
-	if _, ok := tvCache[userID]; !ok {
+	if _, ok := tvCache[userId]; !ok {
 		return context.Respond(&telebot.CallbackResponse{Text: messages.NoSearchResult})
 	}
 
-	*pagePointer[userID]++
-	if *pagePointer[userID] > maxPage[userID] {
-		*pagePointer[userID] = maxPage[userID]
+	*pagePointer[userId]++
+	if *pagePointer[userId] > maxPage[userId] {
+		*pagePointer[userId] = maxPage[userId]
 	}
 
-	paginatedTV := paginators.PaginateTV(tvCache[userID], *pagePointer[userID], tvCount[userID])
-	return updateTVMessage(context, paginatedTV, *pagePointer[userID], maxPage[userID], tvCount[userID])
+	paginatedTV := paginators.PaginateTV(tvCache[userId], *pagePointer[userId], tvCount[userId])
+	return updateTVMessage(context, paginatedTV, *pagePointer[userId], maxPage[userId], tvCount[userId])
 }
 
 func (h *tvHandler) handlePrevPage(context telebot.Context) error {
-	userID := context.Sender().ID
+	userId := context.Sender().ID
 
-	if _, ok := tvCache[userID]; !ok {
+	if _, ok := tvCache[userId]; !ok {
 		return context.Respond(&telebot.CallbackResponse{Text: messages.NoSearchResult})
 	}
 
-	*pagePointer[userID]--
-	if *pagePointer[userID] < 1 {
-		*pagePointer[userID] = 1
+	*pagePointer[userId]--
+	if *pagePointer[userId] < 1 {
+		*pagePointer[userId] = 1
 	}
 
-	paginatedTV := paginators.PaginateTV(tvCache[userID], *pagePointer[userID], tvCount[userID])
-	return updateTVMessage(context, paginatedTV, *pagePointer[userID], maxPage[userID], tvCount[userID])
+	paginatedTV := paginators.PaginateTV(tvCache[userId], *pagePointer[userId], tvCount[userId])
+	return updateTVMessage(context, paginatedTV, *pagePointer[userId], maxPage[userId], tvCount[userId])
 }
 
 func updateTVMessage(context telebot.Context, paginatedTV []tv.TV, currentPage, maxPage, tvCount int) error {

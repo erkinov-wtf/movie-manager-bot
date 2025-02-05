@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/erkinov-wtf/movie-manager-bot/dependencyInjection"
 	"github.com/erkinov-wtf/movie-manager-bot/handlers"
+	"github.com/erkinov-wtf/movie-manager-bot/helpers/messages"
 	"github.com/erkinov-wtf/movie-manager-bot/middleware"
 	"github.com/erkinov-wtf/movie-manager-bot/storage/cache"
 	"gopkg.in/telebot.v3"
@@ -13,14 +14,27 @@ import (
 
 func SetupDefaultRoutes(bot *telebot.Bot, container *dependencyInjection.Container) {
 	bot.Handle(telebot.OnText, func(context telebot.Context) error {
-		// Checking if bot waits for user's api key input
-		isActive, userCache := cache.UserCache.Get(context.Sender().ID)
-		if isActive && userCache.ApiToken.IsTokenWaiting {
-			log.Print("redirecting to api text input")
-			return container.DefaultHandler.HandleTextInput(context)
+		userId := context.Sender().ID
+		isActive, userCache := cache.UserCache.Get(userId)
+
+		if !isActive {
+			log.Printf("No active session for user %v", userId)
+			return context.Send(messages.InternalError)
 		}
-		log.Printf("Unknown command: %s", context.Message().Text)
-		return context.Send(fmt.Sprintf("Unknown %s command. Please use /help", context.Message().Text))
+
+		switch {
+		case userCache.ApiToken.IsTokenWaiting:
+			log.Printf("Handling API token input for user %d", userId)
+			return container.DefaultHandler.HandleTextInput(context)
+
+		case userCache.SearchState.IsSearchWaiting:
+			return container.DefaultHandler.HandleReplySearch(context, userCache)
+
+		default:
+			log.Printf("Unknown command from user %d: %s", userId, context.Message().Text)
+			return context.Send(fmt.Sprintf("Unknown input '%s'. Please use /help for available commands",
+				context.Message().Text))
+		}
 	})
 
 	bot.Handle(telebot.OnCallback, handleCallback(container))

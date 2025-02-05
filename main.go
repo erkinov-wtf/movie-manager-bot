@@ -43,13 +43,14 @@ func main() {
 	commands.SetupWatchlistRoutes(bot, container)
 	log.Print("bot handlers setup")
 
-	menu := &telebot.ReplyMarkup{}
+	menu := &telebot.ReplyMarkup{ResizeKeyboard: true}
 	btnSearch := menu.Text("Search")
 	btnHelp := menu.Text("Help")
 
 	// Add buttons to the reply keyboard
 	menu.Reply(
-		menu.Row(btnSearch, btnHelp), // Buttons in a single row
+		menu.Row(btnSearch, btnHelp), // First row
+		menu.Row(btnHelp),            // Second row
 	)
 
 	// Handle the "Search" button

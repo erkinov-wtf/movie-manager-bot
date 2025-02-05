@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/erkinov-wtf/movie-manager-bot/storage/cache"
 	"gopkg.in/telebot.v3"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"time"
@@ -23,14 +23,16 @@ func getLatestBotVersion() string {
 		log.Println("Failed to fetch tags from GitHub:", err)
 		return "Unknown"
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
 		log.Println("GitHub API returned non-200 status:", resp.StatusCode)
 		return "Unknown"
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Println("Failed to read response body:", err)
 		return "Unknown"
@@ -83,17 +85,25 @@ func DebugMessage(context telebot.Context) error {
 
 	// Retrieve cache data
 	isActive, userCache := cache.UserCache.Get(context.Sender().ID)
-	debugMessage += fmt.Sprintf(
-		"*📦 Cache Info:*\n"+
-			"• *Cache Active:* `%v`\n"+
-			"• *Cache Value:* `%v`\n"+
-			"• *Token Waiting:* `%v`\n"+
-			"• *Token:* `%v`\n"+
-			"• *Movie Search:* `%v`\n"+
-			"• *TV Show Search:* `%v`\n"+
-			"——————————————",
-		isActive, userCache.Value, userCache.ApiToken.IsTokenWaiting, userCache.ApiToken.Token, userCache.SearchState.IsMovieSearch, userCache.SearchState.IsTVShowSearch,
-	)
+	if isActive {
+		debugMessage += fmt.Sprintf(
+			"*📦 Cache Info:*\n"+
+				"• *Cache Active:* `%v`\n"+
+				"• *Cache Value:* `%v`\n"+
+				"• *Token Waiting:* `%v`\n"+
+				"• *Token:* `%v`\n"+
+				"• *Movie Search:* `%v`\n"+
+				"• *TV Show Search:* `%v`\n"+
+				"——————————————",
+			isActive, userCache.Value, userCache.ApiToken.IsTokenWaiting, userCache.ApiToken.Token, userCache.SearchState.IsMovieSearch, userCache.SearchState.IsTVShowSearch,
+		)
+	} else {
+		debugMessage += fmt.Sprintf(
+			"*📦 Cache Info:*\n" +
+				"*No cache data found*\n" +
+				"——————————————",
+		)
+	}
 
 	// Send message with Markdown formatting
 	return context.Send(debugMessage, &telebot.SendOptions{ParseMode: "Markdown"})

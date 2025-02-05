@@ -26,8 +26,9 @@ type ApiToken struct {
 }
 
 type SearchState struct {
-	IsMovieSearch  bool
-	IsTVShowSearch bool
+	IsSearchWaiting bool
+	IsMovieSearch   bool
+	IsTVShowSearch  bool
 }
 
 var UserCache UserCacheData
@@ -37,13 +38,12 @@ func NewUserCache() {
 	log.Print("User cache setup")
 }
 
-// Set adds a user to the cache with an optional expiration time
-func (c *UserCacheData) Set(userID int64, value bool, expiration time.Duration, isTokenWaiting bool) {
+func (c *UserCacheData) Set(userId int64, value bool, expiration time.Duration, isTokenWaiting bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	tokenDb := c.getTokenDb(userID, isTokenWaiting)
-	c.items[userID] = UserCacheItem{
+	tokenDb := c.getTokenDb(userId, isTokenWaiting)
+	c.items[userId] = UserCacheItem{
 		Value:      value,
 		ExpireTime: time.Now().Add(expiration),
 		ApiToken: ApiToken{
@@ -52,33 +52,73 @@ func (c *UserCacheData) Set(userID int64, value bool, expiration time.Duration, 
 		},
 
 		SearchState: SearchState{
-			IsMovieSearch:  false,
-			IsTVShowSearch: false,
+			IsSearchWaiting: false,
+			IsMovieSearch:   false,
+			IsTVShowSearch:  false,
 		},
 	}
 }
 
-func (c *UserCacheData) UpdateTokenState(userID int64, isTokenWaiting bool) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	tokenDb := c.getTokenDb(userID, isTokenWaiting)
-	c.items[userID] = UserCacheItem{
-		ApiToken: ApiToken{IsTokenWaiting: isTokenWaiting, Token: tokenDb},
-	}
-}
-
-// Get retrieves a user from the cache
-func (c *UserCacheData) Get(userID int64) (isActive bool, data *UserCacheItem) {
+func (c *UserCacheData) Get(userId int64) (isActive bool, data *UserCacheItem) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	userCache, found := c.items[userID]
+	userCache, found := c.items[userId]
 	if !found || userCache.ExpireTime.Before(time.Now()) {
-		return false, &userCache
+		return false, nil
 	}
 
 	return true, &userCache
+}
+
+func (c *UserCacheData) UpdateTokenState(userId int64, isTokenWaiting bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	userCache, found := c.items[userId]
+	if !found || userCache.ExpireTime.Before(time.Now()) {
+		log.Printf("User ID %d not found in cache or cache expired", userId)
+		return
+	}
+
+	userCache.ApiToken.IsTokenWaiting = isTokenWaiting
+	userCache.ApiToken.Token = c.getTokenDb(userId, isTokenWaiting)
+
+	c.items[userId] = userCache
+
+	log.Printf("Updated token state for user ID %d: TokenWaiting=%v, Token=%s", userId, isTokenWaiting, userCache.ApiToken.Token)
+}
+
+func (c *UserCacheData) SetSearchStartTrue(userId int64, isMovieSearch bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if userCache, found := c.items[userId]; found && time.Now().Before(userCache.ExpireTime) {
+		userCache.SearchState = SearchState{
+			IsSearchWaiting: true,
+			IsMovieSearch:   isMovieSearch,
+			IsTVShowSearch:  !isMovieSearch,
+		}
+
+		c.items[userId] = userCache
+		log.Printf("Updated search state to TRUE for user ID %d", userId)
+	}
+}
+
+func (c *UserCacheData) SetSearchStartFalse(userId int64) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if userCache, found := c.items[userId]; found {
+		userCache.SearchState = SearchState{
+			IsSearchWaiting: false,
+			IsMovieSearch:   false,
+			IsTVShowSearch:  false,
+		}
+
+		c.items[userId] = userCache
+		log.Printf("Updated search state to FALSE for user ID %d", userId)
+	}
 }
 
 // Clear removes all items from the cache
@@ -89,20 +129,16 @@ func (c *UserCacheData) Clear() {
 }
 
 func (c *UserCacheData) getTokenDb(userId int64, isTokenWaiting bool) string {
-	var apiTokenDb string
-
-	if !isTokenWaiting {
-		err := database.DB.Model(&models.User{}).Where("id = ?", userId).
-			Select("tmdb_api_key").
-			Pluck("tmdb_api_key", &apiTokenDb).Error
-
-		if err != nil {
-			log.Print(err)
-			return ""
-		}
+	if isTokenWaiting {
+		return ""
 	}
 
-	if apiTokenDb == "" {
+	var apiTokenDb string
+
+	if err := database.DB.Model(&models.User{}).Where("id = ?", userId).
+		Select("tmdb_api_key").
+		Pluck("tmdb_api_key", &apiTokenDb).Error; err != nil {
+		log.Print(err)
 		return ""
 	}
 
