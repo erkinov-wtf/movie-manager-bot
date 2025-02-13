@@ -18,7 +18,7 @@ func SetupDefaultRoutes(bot *telebot.Bot, container *dependencyInjection.Contain
 
 	bot.Handle(telebot.OnText, func(context telebot.Context) error {
 		userId := context.Sender().ID
-		isActive, userCache := cache.UserCache.Get(userId)
+		isActive, userCache := cache.UserCache.Fetch(userId)
 
 		if !isActive {
 			log.Printf("No active session for user %v", userId)

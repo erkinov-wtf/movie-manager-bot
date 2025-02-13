@@ -15,7 +15,7 @@ import (
 	"strings"
 )
 
-func (*watchlistHandler) WatchlistInfo(context telebot.Context) error {
+func (*WatchlistHandler) WatchlistInfo(context telebot.Context) error {
 	log.Print(messages.WatchlistCommand)
 
 	msg, err := context.Bot().Send(context.Chat(), messages.Loading)
@@ -42,7 +42,7 @@ func (*watchlistHandler) WatchlistInfo(context telebot.Context) error {
 	return nil
 }
 
-func (h *watchlistHandler) handleTVWatchlist(context telebot.Context, msgId string) error {
+func (h *WatchlistHandler) handleTVWatchlist(context telebot.Context, msgId string) error {
 	msgID, _ := strconv.Atoi(msgId)
 	msg := &telebot.Message{ID: msgID, Chat: context.Chat()}
 
@@ -79,7 +79,7 @@ func (h *watchlistHandler) handleTVWatchlist(context telebot.Context, msgId stri
 	return nil
 }
 
-func (h *watchlistHandler) handleMovieWatchlist(context telebot.Context, msgId string) error {
+func (h *WatchlistHandler) handleMovieWatchlist(context telebot.Context, msgId string) error {
 	msgID, _ := strconv.Atoi(msgId)
 	msg := &telebot.Message{ID: msgID, Chat: context.Chat()}
 
@@ -116,7 +116,7 @@ func (h *watchlistHandler) handleMovieWatchlist(context telebot.Context, msgId s
 	return nil
 }
 
-func (h *watchlistHandler) handleFullWatchlist(context telebot.Context, msgId string) error {
+func (h *WatchlistHandler) handleFullWatchlist(context telebot.Context, msgId string) error {
 	msgID, _ := strconv.Atoi(msgId)
 	msg := &telebot.Message{ID: msgID, Chat: context.Chat()}
 
@@ -153,7 +153,7 @@ func (h *watchlistHandler) handleFullWatchlist(context telebot.Context, msgId st
 	return nil
 }
 
-func (h *watchlistHandler) handleWatchlistInfo(context telebot.Context, data string) error {
+func (h *WatchlistHandler) handleWatchlistInfo(context telebot.Context, data string) error {
 	dataParts := strings.Split(data, "-")
 	if len(dataParts) < 2 {
 		log.Printf("Received malformed callback data for waitlist: %s", data)
@@ -200,7 +200,7 @@ func (h *watchlistHandler) handleWatchlistInfo(context telebot.Context, data str
 	}
 }
 
-func (h *watchlistHandler) handleBackToPagination(context telebot.Context, showType string) error {
+func (h *WatchlistHandler) handleBackToPagination(context telebot.Context, showType string) error {
 	currentPage := 1
 
 	var watchlist []models.Watchlist
@@ -238,7 +238,7 @@ func (h *watchlistHandler) handleBackToPagination(context telebot.Context, showT
 	return nil
 }
 
-func (h *watchlistHandler) WatchlistCallback(context telebot.Context) error {
+func (h *WatchlistHandler) WatchlistCallback(context telebot.Context) error {
 	callback := context.Callback()
 	trimmed := strings.TrimSpace(callback.Data)
 	log.Printf("Callback data: %s", trimmed)
