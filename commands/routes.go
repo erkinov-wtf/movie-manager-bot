@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/erkinov-wtf/movie-manager-bot/dependencyInjection"
 	"github.com/erkinov-wtf/movie-manager-bot/handlers"
+	"github.com/erkinov-wtf/movie-manager-bot/helpers/keyboards"
 	"github.com/erkinov-wtf/movie-manager-bot/helpers/messages"
 	"github.com/erkinov-wtf/movie-manager-bot/middleware"
 	"github.com/erkinov-wtf/movie-manager-bot/storage/cache"
@@ -13,6 +14,8 @@ import (
 )
 
 func SetupDefaultRoutes(bot *telebot.Bot, container *dependencyInjection.Container) {
+	keyboards.LoadAllKeyboards(bot, container.DefaultHandler)
+
 	bot.Handle(telebot.OnText, func(context telebot.Context) error {
 		userId := context.Sender().ID
 		isActive, userCache := cache.UserCache.Get(userId)

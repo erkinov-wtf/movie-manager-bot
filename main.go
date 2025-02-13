@@ -43,30 +43,6 @@ func main() {
 	commands.SetupWatchlistRoutes(bot, container)
 	log.Print("bot handlers setup")
 
-	menu := &telebot.ReplyMarkup{ResizeKeyboard: true}
-	btnSearch := menu.Text("Search")
-	btnHelp := menu.Text("Help")
-
-	// Add buttons to the reply keyboard
-	menu.Reply(
-		menu.Row(btnSearch, btnHelp), // First row
-		menu.Row(btnHelp),            // Second row
-	)
-
-	// Handle the "Search" button
-	bot.Handle(&btnSearch, func(c telebot.Context) error {
-		return c.Send("You pressed the Search button!")
-	})
-
-	// Handle the "Help" button
-	bot.Handle(&btnHelp, func(c telebot.Context) error {
-		return c.Send("Here’s some help info.")
-	})
-
-	bot.Handle("/starts", func(c telebot.Context) error {
-		return c.Send("Welcome! Choose an option:", menu)
-	})
-
 	// Create a cancellable context
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
