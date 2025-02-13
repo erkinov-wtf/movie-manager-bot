@@ -2,8 +2,8 @@ package tv
 
 import "github.com/erkinov-wtf/movie-manager-bot/interfaces"
 
-type tvHandler struct{}
+type TVHandler struct{}
 
 func NewTVHandler() interfaces.TVInterface {
-	return &tvHandler{}
+	return &TVHandler{}
 }

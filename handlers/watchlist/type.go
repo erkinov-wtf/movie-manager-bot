@@ -2,10 +2,10 @@ package watchlist
 
 import "github.com/erkinov-wtf/movie-manager-bot/interfaces"
 
-type watchlistHandler struct{}
+type WatchlistHandler struct{}
 
 func NewWatchlistHandler() interfaces.WatchlistInterface {
-	return &watchlistHandler{}
+	return &WatchlistHandler{}
 }
 
 const itemsPerPage = 3

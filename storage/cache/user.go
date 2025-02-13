@@ -71,6 +71,45 @@ func (c *UserCacheData) Get(userId int64) (isActive bool, data *UserCacheItem) {
 	return true, &userCache
 }
 
+func (c *UserCacheData) Fetch(userId int64) (isActive bool, data *UserCacheItem) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if userCache, found := c.items[userId]; found {
+		if !userCache.ExpireTime.Before(time.Now()) {
+			return true, &userCache
+		}
+		delete(c.items, userId)
+	}
+
+	var user models.User
+	err := database.DB.First(&user, "id = ?", userId).Error
+	if err != nil {
+		log.Printf("Failed to fetch user %d from database: %v", userId, err)
+		return false, nil
+	}
+
+	isTokenWaiting := user.TmdbApiKey == nil
+	userCache := UserCacheItem{
+		Value:      true,
+		ExpireTime: time.Now().Add(24 * time.Hour),
+		ApiToken: ApiToken{
+			IsTokenWaiting: isTokenWaiting,
+			Token:          c.getTokenDb(userId, isTokenWaiting),
+		},
+		SearchState: SearchState{
+			IsSearchWaiting: false,
+			IsMovieSearch:   false,
+			IsTVShowSearch:  false,
+		},
+	}
+
+	c.items[userId] = userCache
+	log.Printf("User ID %d found in database and added to cache", userId)
+
+	return true, &userCache
+}
+
 func (c *UserCacheData) UpdateTokenState(userId int64, isTokenWaiting bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -134,7 +173,6 @@ func (c *UserCacheData) getTokenDb(userId int64, isTokenWaiting bool) string {
 	}
 
 	var apiTokenDb string
-
 	if err := database.DB.Model(&models.User{}).Where("id = ?", userId).
 		Select("tmdb_api_key").
 		Pluck("tmdb_api_key", &apiTokenDb).Error; err != nil {

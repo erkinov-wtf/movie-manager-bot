@@ -25,22 +25,27 @@ var (
 	movieCount  = make(map[int64]int)
 )
 
-func (*movieHandler) SearchMovie(context telebot.Context) error {
+func (*MovieHandler) SearchMovie(context telebot.Context) error {
 	log.Print(messages.MovieCommand)
 	userId := context.Sender().ID
 
-	if context.Message().Payload == "" {
+	searchQuery := context.Message().Payload
+	if searchQuery == "" && !strings.HasPrefix(context.Message().Text, "/sm") {
+		searchQuery = context.Message().Text
+	}
+
+	if searchQuery == "" {
 		return context.Send(messages.MovieEmptyPayload)
 	}
 
-	msg, err := context.Bot().Send(context.Chat(), fmt.Sprintf("Looking for *%v*...", context.Message().Payload), telebot.ModeMarkdown)
+	msg, err := context.Bot().Send(context.Chat(), fmt.Sprintf("Looking for *%v*...", searchQuery), telebot.ModeMarkdown)
 	if err != nil {
 		log.Print(err)
 		return err
 	}
 
 	// Fetch search results
-	movieData, err := search.SearchMovie(context.Message().Payload, userId)
+	movieData, err := search.SearchMovie(searchQuery, userId)
 	if err != nil || movieData.TotalResults == 0 {
 		_, err = context.Bot().Edit(msg, fmt.Sprintf("No movies found for *%s*", context.Message().Payload), telebot.ModeMarkdown)
 		if err != nil {
@@ -71,7 +76,7 @@ func (*movieHandler) SearchMovie(context telebot.Context) error {
 	return nil
 }
 
-func (h *movieHandler) handleMovieDetails(context telebot.Context, data string) error {
+func (h *MovieHandler) handleMovieDetails(context telebot.Context, data string) error {
 	parsedId, err := strconv.Atoi(data)
 	if err != nil {
 		log.Print(err)
@@ -93,7 +98,7 @@ func (h *movieHandler) handleMovieDetails(context telebot.Context, data string) 
 	return context.Respond(&telebot.CallbackResponse{Text: messages.MovieSelected})
 }
 
-func (h *movieHandler) handleWatchedDetails(context telebot.Context, movieIdStr string) error {
+func (h *MovieHandler) handleWatchedDetails(context telebot.Context, movieIdStr string) error {
 	tx := database.DB.Begin()
 	defer func() {
 		if r := recover(); r != nil {
@@ -158,7 +163,7 @@ func (h *movieHandler) handleWatchedDetails(context telebot.Context, movieIdStr 
 	return nil
 }
 
-func (h *movieHandler) handleWatchlist(context telebot.Context, data string) error {
+func (h *MovieHandler) handleWatchlist(context telebot.Context, data string) error {
 	movieId, err := strconv.Atoi(data)
 	if err != nil {
 		log.Print(err)
@@ -193,7 +198,7 @@ func (h *movieHandler) handleWatchlist(context telebot.Context, data string) err
 	return nil
 }
 
-func (h *movieHandler) handleBackToPagination(context telebot.Context) error {
+func (h *MovieHandler) handleBackToPagination(context telebot.Context) error {
 	userId := context.Sender().ID
 
 	if _, ok := moviesCache[userId]; !ok {
@@ -218,7 +223,7 @@ func (h *movieHandler) handleBackToPagination(context telebot.Context) error {
 	return context.Respond(&telebot.CallbackResponse{Text: messages.BackToSearchResults})
 }
 
-func (h *movieHandler) handleNextPage(context telebot.Context) error {
+func (h *MovieHandler) handleNextPage(context telebot.Context) error {
 	userId := context.Sender().ID
 
 	if _, ok := moviesCache[userId]; !ok {
@@ -234,7 +239,7 @@ func (h *movieHandler) handleNextPage(context telebot.Context) error {
 	return updateMovieMessage(context, paginatedMovies, *pagePointer[userId], maxPage[userId], movieCount[userId])
 }
 
-func (h *movieHandler) handlePrevPage(context telebot.Context) error {
+func (h *MovieHandler) handlePrevPage(context telebot.Context) error {
 	userId := context.Sender().ID
 
 	if _, ok := moviesCache[userId]; !ok {
@@ -266,7 +271,7 @@ func updateMovieMessage(context telebot.Context, paginatedMovies []movie.Movie, 
 	return context.Respond(&telebot.CallbackResponse{Text: messages.PageUpdated})
 }
 
-func (h *movieHandler) MovieCallback(context telebot.Context) error {
+func (h *MovieHandler) MovieCallback(context telebot.Context) error {
 	callback := context.Callback()
 	trimmed := strings.TrimSpace(callback.Data)
 

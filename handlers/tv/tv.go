@@ -26,21 +26,26 @@ var (
 	selectedTvShow = make(map[int64]*tv.TV)
 )
 
-func (*tvHandler) SearchTV(context telebot.Context) error {
-	userId := context.Sender().ID
+func (*TVHandler) SearchTV(context telebot.Context) error {
 	log.Print(messages.TVShowCommand)
+	userId := context.Sender().ID
 
-	if context.Message().Payload == "" {
+	searchQuery := context.Message().Payload
+	if searchQuery == "" && !strings.HasPrefix(context.Message().Text, "/stv") {
+		searchQuery = context.Message().Text
+	}
+
+	if searchQuery == "" {
 		return context.Send(messages.TVShowEmptyPayload)
 	}
 
-	msg, err := context.Bot().Send(context.Chat(), fmt.Sprintf("looking for *%v*...", context.Message().Payload), telebot.ModeMarkdown)
+	msg, err := context.Bot().Send(context.Chat(), fmt.Sprintf("looking for *%v*...", searchQuery), telebot.ModeMarkdown)
 	if err != nil {
 		log.Print(err)
 		return context.Send(messages.InternalError)
 	}
 
-	tvData, err := search.SearchTV(context.Message().Payload, userId)
+	tvData, err := search.SearchTV(searchQuery, userId)
 	if err != nil {
 		log.Print(err)
 		return context.Send(messages.InternalError)
@@ -78,7 +83,7 @@ func (*tvHandler) SearchTV(context telebot.Context) error {
 	return nil
 }
 
-func (h *tvHandler) handleTVDetails(context telebot.Context, data string) error {
+func (h *TVHandler) handleTVDetails(context telebot.Context, data string) error {
 	parsedId, err := strconv.Atoi(data)
 	if err != nil {
 		log.Print(err)
@@ -100,7 +105,7 @@ func (h *tvHandler) handleTVDetails(context telebot.Context, data string) error 
 	return context.Respond(&telebot.CallbackResponse{Text: messages.TVShowSelected})
 }
 
-func (h *tvHandler) handleSelectSeasons(context telebot.Context, tvId string) error {
+func (h *TVHandler) handleSelectSeasons(context telebot.Context, tvId string) error {
 	userId := context.Sender().ID
 	TVId, _ := strconv.Atoi(tvId)
 
@@ -157,7 +162,7 @@ func (h *tvHandler) handleSelectSeasons(context telebot.Context, tvId string) er
 	return nil
 }
 
-func (h *tvHandler) handleWatched(context telebot.Context, data string) error {
+func (h *TVHandler) handleWatched(context telebot.Context, data string) error {
 	// begin transaction
 	tx := database.DB.Begin()
 	defer func() {
@@ -248,7 +253,7 @@ func (h *tvHandler) handleWatched(context telebot.Context, data string) error {
 	return nil
 }
 
-func (h *tvHandler) handleWatchlist(context telebot.Context, tvId string) error {
+func (h *TVHandler) handleWatchlist(context telebot.Context, tvId string) error {
 	tvShowId, err := strconv.Atoi(tvId)
 	if err != nil {
 		log.Print(err)
@@ -283,7 +288,7 @@ func (h *tvHandler) handleWatchlist(context telebot.Context, tvId string) error 
 	return nil
 }
 
-func (h *tvHandler) handleBackToPagination(context telebot.Context) error {
+func (h *TVHandler) handleBackToPagination(context telebot.Context) error {
 	userId := context.Sender().ID
 
 	if _, ok := tvCache[userId]; !ok {
@@ -313,7 +318,7 @@ func (h *tvHandler) handleBackToPagination(context telebot.Context) error {
 	return nil
 }
 
-func (h *tvHandler) handleNextPage(context telebot.Context) error {
+func (h *TVHandler) handleNextPage(context telebot.Context) error {
 	userId := context.Sender().ID
 
 	if _, ok := tvCache[userId]; !ok {
@@ -329,7 +334,7 @@ func (h *tvHandler) handleNextPage(context telebot.Context) error {
 	return updateTVMessage(context, paginatedTV, *pagePointer[userId], maxPage[userId], tvCount[userId])
 }
 
-func (h *tvHandler) handlePrevPage(context telebot.Context) error {
+func (h *TVHandler) handlePrevPage(context telebot.Context) error {
 	userId := context.Sender().ID
 
 	if _, ok := tvCache[userId]; !ok {
@@ -359,7 +364,7 @@ func updateTVMessage(context telebot.Context, paginatedTV []tv.TV, currentPage, 
 	return context.Respond(&telebot.CallbackResponse{Text: messages.PageUpdated})
 }
 
-func (h *tvHandler) TVCallback(context telebot.Context) error {
+func (h *TVHandler) TVCallback(context telebot.Context) error {
 	callback := context.Callback()
 	trimmed := strings.TrimSpace(callback.Data)
 

@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-func (*infoHandler) Info(context telebot.Context) error {
+func (*InfoHandler) Info(context telebot.Context) error {
 	log.Print(messages.InfoCommand)
 
 	msg, err := context.Bot().Send(context.Chat(), messages.Loading)
@@ -39,7 +39,7 @@ func (*infoHandler) Info(context telebot.Context) error {
 	return nil
 }
 
-func (i *infoHandler) handleTVDetails(context telebot.Context, msgId string) error {
+func (i *InfoHandler) handleTVDetails(context telebot.Context, msgId string) error {
 	var watchedShows []models.TVShows
 
 	if err := database.DB.Where("user_id = ?", context.Sender().ID).Find(&watchedShows).Error; err != nil {
@@ -81,7 +81,7 @@ func (i *infoHandler) handleTVDetails(context telebot.Context, msgId string) err
 	return nil
 }
 
-func (i *infoHandler) handleMovieDetails(context telebot.Context, msgId string) error {
+func (i *InfoHandler) handleMovieDetails(context telebot.Context, msgId string) error {
 	var watchedMovies []models.Movie
 
 	if err := database.DB.Where("user_id = ?", context.Sender().ID).Find(&watchedMovies).Error; err != nil {
@@ -123,7 +123,7 @@ func (i *infoHandler) handleMovieDetails(context telebot.Context, msgId string) 
 	return nil
 }
 
-func (i *infoHandler) handleFullDetails(context telebot.Context, data string) error {
+func (i *InfoHandler) handleFullDetails(context telebot.Context, data string) error {
 	var watchedMovies []models.Movie
 	var watchedShows []models.TVShows
 
@@ -201,7 +201,7 @@ func (i *infoHandler) handleFullDetails(context telebot.Context, data string) er
 	return nil
 }
 
-func (i *infoHandler) InfoCallback(context telebot.Context) error {
+func (i *InfoHandler) InfoCallback(context telebot.Context) error {
 	callback := context.Callback()
 	trimmed := strings.TrimSpace(callback.Data)
 

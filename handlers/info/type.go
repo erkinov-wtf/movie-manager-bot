@@ -4,10 +4,10 @@ import (
 	"github.com/erkinov-wtf/movie-manager-bot/interfaces"
 )
 
-type infoHandler struct{}
+type InfoHandler struct{}
 
 func NewInfoHandler() interfaces.InfoInterface {
-	return &infoHandler{}
+	return &InfoHandler{}
 }
 
 type tvStats struct {
