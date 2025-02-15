@@ -3,7 +3,6 @@ package watchlist
 import (
 	"fmt"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/models"
-	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/database"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/tmdb/movie"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/tmdb/tv"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/messages"
@@ -15,7 +14,7 @@ import (
 	"strings"
 )
 
-func (*WatchlistHandler) WatchlistInfo(context telebot.Context) error {
+func (h *WatchlistHandler) WatchlistInfo(context telebot.Context) error {
 	log.Print(messages.WatchlistCommand)
 
 	msg, err := context.Bot().Send(context.Chat(), messages.Loading)
@@ -48,7 +47,7 @@ func (h *WatchlistHandler) handleTVWatchlist(context telebot.Context, msgId stri
 
 	var watchlist []models.Watchlist
 
-	if err := database.DB.Where("user_id = ? AND type = ?", context.Sender().ID, models.TVShowType).Find(&watchlist).Error; err != nil {
+	if err := h.Database.Where("user_id = ? AND type = ?", context.Sender().ID, models.TVShowType).Find(&watchlist).Error; err != nil {
 		log.Print(err)
 		return context.Send(messages.InternalError)
 	}
@@ -85,7 +84,7 @@ func (h *WatchlistHandler) handleMovieWatchlist(context telebot.Context, msgId s
 
 	var watchlist []models.Watchlist
 
-	if err := database.DB.Where("user_id = ? AND type = ?", context.Sender().ID, models.MovieType).Find(&watchlist).Error; err != nil {
+	if err := h.Database.Where("user_id = ? AND type = ?", context.Sender().ID, models.MovieType).Find(&watchlist).Error; err != nil {
 		log.Print(err)
 		return context.Send(messages.InternalError)
 	}
@@ -122,7 +121,7 @@ func (h *WatchlistHandler) handleFullWatchlist(context telebot.Context, msgId st
 
 	var watchlist []models.Watchlist
 
-	if err := database.DB.Where("user_id = ?", context.Sender().ID).Find(&watchlist).Error; err != nil {
+	if err := h.Database.Where("user_id = ?", context.Sender().ID).Find(&watchlist).Error; err != nil {
 		log.Print(err)
 		return context.Send(messages.InternalError)
 	}
@@ -205,12 +204,12 @@ func (h *WatchlistHandler) handleBackToPagination(context telebot.Context, showT
 
 	var watchlist []models.Watchlist
 	if showType == string(models.AllType) {
-		if err := database.DB.Where("user_id = ?", context.Sender().ID).Find(&watchlist).Error; err != nil {
+		if err := h.Database.Where("user_id = ?", context.Sender().ID).Find(&watchlist).Error; err != nil {
 			log.Print(err)
 			return context.Send(messages.InternalError)
 		}
 	} else {
-		if err := database.DB.Where("user_id = ? AND type = ?", context.Sender().ID, showType).Find(&watchlist).Error; err != nil {
+		if err := h.Database.Where("user_id = ? AND type = ?", context.Sender().ID, showType).Find(&watchlist).Error; err != nil {
 			log.Print(err)
 			return context.Send(messages.InternalError)
 		}
@@ -286,12 +285,12 @@ func (h *WatchlistHandler) WatchlistCallback(context telebot.Context) error {
 		var watchlist []models.Watchlist
 		// Determine watchlist type and fetch data
 		if watchlistType == string(models.AllType) {
-			if err = database.DB.Where("user_id = ?", context.Sender().ID).Find(&watchlist).Error; err != nil {
+			if err = h.Database.Where("user_id = ?", context.Sender().ID).Find(&watchlist).Error; err != nil {
 				log.Print(err)
 				return context.Send(messages.InternalError)
 			}
 		} else {
-			if err = database.DB.Where("user_id = ? AND type = ?", context.Sender().ID, watchlistType).Find(&watchlist).Error; err != nil {
+			if err = h.Database.Where("user_id = ? AND type = ?", context.Sender().ID, watchlistType).Find(&watchlist).Error; err != nil {
 				log.Print(err)
 				return context.Send(messages.InternalError)
 			}

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/models"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/cache"
-	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/database"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/tmdb/search"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/tmdb/tv"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/messages"
@@ -26,7 +25,7 @@ var (
 	selectedTvShow = make(map[int64]*tv.TV)
 )
 
-func (*TVHandler) SearchTV(context telebot.Context) error {
+func (h *TVHandler) SearchTV(context telebot.Context) error {
 	log.Print(messages.TVShowCommand)
 	userId := context.Sender().ID
 
@@ -90,13 +89,13 @@ func (h *TVHandler) handleTVDetails(context telebot.Context, data string) error 
 		return context.Send(messages.InternalError)
 	}
 
-	tvData, err := tv2.GetTV(parsedId, context.Sender().ID)
+	tvData, err := tv.GetTV(parsedId, context.Sender().ID)
 	if err != nil {
 		log.Print(err)
 		return context.Send(messages.InternalError)
 	}
 
-	err = tv2.ShowTV(context, tvData, true)
+	err = tv.ShowTV(context, tvData, true)
 	if err != nil {
 		log.Print(err)
 		return context.Send(messages.InternalError)
@@ -110,7 +109,7 @@ func (h *TVHandler) handleSelectSeasons(context telebot.Context, tvId string) er
 	TVId, _ := strconv.Atoi(tvId)
 
 	var watchedSeasons int = 0
-	if err := database.DB.Model(&models.TVShows{}).
+	if err := h.Database.Model(&models.TVShows{}).
 		Select("seasons").
 		Where("api_id = ? AND user_id = ?", TVId, userId).
 		Scan(&watchedSeasons).Error; err != nil {
@@ -120,7 +119,7 @@ func (h *TVHandler) handleSelectSeasons(context telebot.Context, tvId string) er
 		}
 	}
 
-	tvShow, err := tv2.GetTV(TVId, context.Sender().ID)
+	tvShow, err := tv.GetTV(TVId, context.Sender().ID)
 	if err != nil {
 		log.Printf("Error fetching TV show: %v", err)
 		return context.Send(messages.InternalError)
@@ -164,7 +163,7 @@ func (h *TVHandler) handleSelectSeasons(context telebot.Context, tvId string) er
 
 func (h *TVHandler) handleWatched(context telebot.Context, data string) error {
 	// begin transaction
-	tx := database.DB.Begin()
+	tx := h.Database.Begin()
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
@@ -200,7 +199,7 @@ func (h *TVHandler) handleWatched(context telebot.Context, data string) error {
 
 	var episodes, runtime int64
 	for i := 1; i <= seasonNum; i++ {
-		tvSeason, err := tv2.GetSeason(int(selectedTvShow[userId].ID), i, userId)
+		tvSeason, err := tv.GetSeason(int(selectedTvShow[userId].ID), i, userId)
 		if err != nil {
 			log.Print(err.Error())
 			return context.Send(messages.InternalError)
@@ -260,7 +259,7 @@ func (h *TVHandler) handleWatchlist(context telebot.Context, tvId string) error 
 		return context.Send(messages.InternalError)
 	}
 
-	tvShow, err := tv2.GetTV(tvShowId, context.Sender().ID)
+	tvShow, err := tv.GetTV(tvShowId, context.Sender().ID)
 	if err != nil {
 		log.Print(err)
 		return context.Send(messages.InternalError)
@@ -274,7 +273,7 @@ func (h *TVHandler) handleWatchlist(context telebot.Context, tvId string) error 
 		Image:     tvShow.PosterPath,
 	}
 
-	if err = database.DB.Create(&newWatchlist).Error; err != nil {
+	if err = h.Database.Create(&newWatchlist).Error; err != nil {
 		log.Print(err)
 		return context.Send(messages.InternalError)
 	}
@@ -350,7 +349,7 @@ func (h *TVHandler) handlePrevPage(context telebot.Context) error {
 	return updateTVMessage(context, paginatedTV, *pagePointer[userId], maxPage[userId], tvCount[userId])
 }
 
-func updateTVMessage(context telebot.Context, paginatedTV []tv2.TV, currentPage, maxPage, tvCount int) error {
+func updateTVMessage(context telebot.Context, paginatedTV []tv.TV, currentPage, maxPage, tvCount int) error {
 	response, btn := paginators.GenerateTVResponse(paginatedTV, currentPage, maxPage, tvCount)
 	_, err := context.Bot().Edit(context.Message(), response, btn, telebot.ModeMarkdown)
 	if err != nil {
