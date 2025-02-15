@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/models"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/cache"
-	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/database"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/tmdb/movie"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/tmdb/search"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/messages"
@@ -103,7 +102,7 @@ func (h *MovieHandler) handleMovieDetails(context telebot.Context, data string) 
 }
 
 func (h *MovieHandler) handleWatchedDetails(context telebot.Context, movieIdStr string) error {
-	tx := database.DB.Begin()
+	tx := h.Database.Begin()
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
@@ -188,7 +187,7 @@ func (h *MovieHandler) handleWatchlist(context telebot.Context, data string) err
 		Image:     movieData.PosterPath,
 	}
 
-	if err = database.DB.Create(&newWatchlist).Error; err != nil {
+	if err = h.Database.Create(&newWatchlist).Error; err != nil {
 		log.Print(err)
 		return context.Send(messages.WatchedMovie)
 	}
