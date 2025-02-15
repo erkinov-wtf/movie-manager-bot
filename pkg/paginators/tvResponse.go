@@ -2,7 +2,7 @@ package paginators
 
 import (
 	"fmt"
-	"github.com/erkinov-wtf/movie-manager-bot/internal/api/media/tv"
+	"github.com/erkinov-wtf/movie-manager-bot/internal/tmdb/tv"
 	"gopkg.in/telebot.v3"
 )
 
@@ -31,7 +31,7 @@ func GenerateTVResponse(paginatedTV []tv.TV, currentPage, maxPage, tvCount int) 
 	btnRow := telebot.Row{}
 
 	for i, mov := range paginatedTV {
-		btnRow = append(btnRow, btn.Data(fmt.Sprintf("%d️⃣", i+1), "", fmt.Sprintf("tv|tv|%v", mov.ID)))
+		btnRow = append(btnRow, btn.Data(fmt.Sprintf("%d️⃣", i+1), "", fmt.Sprintf("tv|tv|%v", mov.Id)))
 	}
 
 	btn.Inline(

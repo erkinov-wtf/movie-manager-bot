@@ -14,11 +14,11 @@ type App struct {
 	Cache      *cache.Manager
 }
 
-func NewApp(cfg *config.Config, db *gorm.DB, client *tmdb.Client, ca *cache.Manager) *App {
+func NewApp(cfg *config.Config, db *gorm.DB, client *tmdb.Client, cache *cache.Manager) *App {
 	return &App{
 		Cfg:        cfg,
 		Database:   db,
 		TMDBClient: client,
-		Cache:      ca,
+		Cache:      cache,
 	}
 }

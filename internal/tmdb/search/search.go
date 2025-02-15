@@ -14,7 +14,7 @@ func SearchMovie(app *appCfg.App, movieTitle string, userId int64) (*MovieSearch
 		"include_adult": "true",
 		"query":         movieTitle,
 	}
-	url := utils.MakeUrl(app.Cfg.Endpoints.SearchMovie, params, userId)
+	url := utils.MakeUrl(app, app.Cfg.Endpoints.SearchMovie, params, userId)
 
 	resp, err := app.TMDBClient.HttpClient.Get(url)
 	if err != nil {
@@ -41,7 +41,7 @@ func SearchTV(app *appCfg.App, tvTitle string, userId int64) (*TVSearch, error) 
 		"include_adult": "true",
 		"query":         tvTitle,
 	}
-	url := utils.MakeUrl(app.Cfg.Endpoints.SearchTv, params, userId)
+	url := utils.MakeUrl(app, app.Cfg.Endpoints.SearchTv, params, userId)
 
 	resp, err := app.TMDBClient.HttpClient.Get(url)
 	if err != nil {

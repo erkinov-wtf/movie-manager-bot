@@ -3,8 +3,6 @@ package defaults
 import (
 	"errors"
 	"fmt"
-	"github.com/erkinov-wtf/movie-manager-bot/internal/api/handlers/movie"
-	"github.com/erkinov-wtf/movie-manager-bot/internal/api/handlers/tv"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/models"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/keyboards"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/messages"
@@ -20,7 +18,7 @@ func (h *DefaultHandler) Start(context telebot.Context) error {
 	log.Print(messages.StartCommand)
 
 	var existingUser models.User
-	if err := h.Database.Where("id = ?", context.Sender().ID).First(&existingUser).Error; err != nil {
+	if err := h.app.Database.Where("id = ?", context.Sender().ID).First(&existingUser).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			btn := &telebot.ReplyMarkup{}
 			btnRows := []telebot.Row{
@@ -41,7 +39,7 @@ func (h *DefaultHandler) Start(context telebot.Context) error {
 			return context.Send(messages.InternalError)
 		}
 	} else {
-		menu := keyboards.LoadMenuKeyboards(context.Bot())
+		menu := keyboards.LoadMenuKeyboards(context.Bot(), h.app)
 		err = context.Send(messages.UseHelp, telebot.ModeMarkdown, menu)
 		if err != nil {
 			log.Print(err)
@@ -54,7 +52,7 @@ func (h *DefaultHandler) Start(context telebot.Context) error {
 
 func (h *DefaultHandler) handleStartCallback(context telebot.Context) error {
 	newUser := models.User{
-		ID:         context.Sender().ID,
+		Id:         context.Sender().ID,
 		FirstName:  &context.Sender().FirstName,
 		LastName:   &context.Sender().LastName,
 		Username:   &context.Sender().Username,
@@ -62,18 +60,18 @@ func (h *DefaultHandler) handleStartCallback(context telebot.Context) error {
 		TmdbApiKey: nil,
 	}
 
-	if err := h.Database.Create(&newUser).Error; err != nil {
+	if err := h.app.Database.Create(&newUser).Error; err != nil {
 		log.Printf("cant create user: %v", err.Error())
 		return context.Send(messages.InternalError)
 	}
 
-	keyboard := keyboards.LoadTokenRegistrationKeyboard(context.Bot(), h)
+	keyboard := keyboards.LoadTokenRegistrationKeyboard(context.Bot(), h, h.app)
 	return context.Send(messages.Registered, keyboard, telebot.ModeMarkdown)
 }
 
 func (h *DefaultHandler) GetToken(context telebot.Context) error {
 	userId := context.Sender().ID
-	isActive, userCache := h.Cache.UserCache.Get(userId)
+	isActive, userCache := h.app.Cache.UserCache.Get(userId)
 
 	if isActive && !userCache.ApiToken.IsTokenWaiting {
 		return context.Send(messages.TokenAlreadyExists, telebot.ModeMarkdown)
@@ -83,8 +81,9 @@ func (h *DefaultHandler) GetToken(context telebot.Context) error {
 }
 
 func (h *DefaultHandler) HandleReplySearch(context telebot.Context) error {
-	h.Cache.UserCache.SetSearchStartFalse(context.Sender().ID)
-	_, uc := h.Cache.UserCache.Get(context.Sender().ID)
+	h.app.Cache.UserCache.SetSearchStartFalse(context.Sender().ID)
+	_, uc := h.app.Cache.UserCache.Get(context.Sender().ID)
+
 	if uc.SearchState.IsTVShowSearch {
 		return h.handleTVShowSearch(context)
 	}
@@ -92,32 +91,30 @@ func (h *DefaultHandler) HandleReplySearch(context telebot.Context) error {
 }
 
 func (h *DefaultHandler) handleTVShowSearch(context telebot.Context) error {
-	tvHandler := &tv.TVHandler{}
-	return tvHandler.SearchTV(context)
+	return h.tvHandler.SearchTV(context)
 }
 
 func (h *DefaultHandler) handleMovieSearch(context telebot.Context) error {
-	movieHandler := &movie.MovieHandler{}
-	return movieHandler.SearchMovie(context)
+	return h.movieHandler.SearchMovie(context)
 }
 
 func (h *DefaultHandler) HandleTextInput(context telebot.Context) error {
 	userId := context.Sender().ID
 	inputText := context.Message().Text
 
-	if !utils.TestApiToken(inputText) {
+	if !utils.TestApiToken(h.app, inputText) {
 		return context.Send(messages.TokenTestFailed, telebot.ModeMarkdown)
 	}
 
-	if err := h.Database.Model(&models.User{}).
+	if err := h.app.Database.Model(&models.User{}).
 		Where("id = ?", userId).
 		Update("tmdb_api_key", inputText).Error; err != nil {
 		log.Print(err)
 		return context.Send(messages.InternalError)
 	}
 
-	h.Cache.UserCache.UpdateTokenState(userId, false)
-	menu := keyboards.LoadMenuKeyboards(context.Bot())
+	h.app.Cache.UserCache.UpdateTokenState(userId, false)
+	menu := keyboards.LoadMenuKeyboards(context.Bot(), h.app)
 
 	return context.Send(messages.TokenSaved, menu, telebot.ModeMarkdown)
 }

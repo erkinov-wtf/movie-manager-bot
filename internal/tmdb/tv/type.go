@@ -1,7 +1,7 @@
 package tv
 
 type TV struct {
-	ID           int64   `json:"id"`
+	Id           int64   `json:"id"`
 	Name         string  `json:"name"`
 	Overview     string  `json:"overview"`
 	Status       string  `json:"status"`
@@ -14,7 +14,7 @@ type TV struct {
 }
 
 type Season struct {
-	ID           int64     `json:"id"`
+	Id           int64     `json:"id"`
 	SeasonNumber int64     `json:"season_number"`
 	Name         string    `json:"name"`
 	Overview     string    `json:"overview"`
@@ -22,7 +22,7 @@ type Season struct {
 }
 
 type Episode struct {
-	ID            int64  `json:"id"`
+	Id            int64  `json:"id"`
 	AirDate       string `json:"air_date"`
 	SeasonNumber  int64  `json:"season_number"`
 	EpisodeNumber int64  `json:"episode_number"`

@@ -47,7 +47,7 @@ func (h *WatchlistHandler) handleTVWatchlist(context telebot.Context, msgId stri
 
 	var watchlist []models.Watchlist
 
-	if err := h.Database.Where("user_id = ? AND type = ?", context.Sender().ID, models.TVShowType).Find(&watchlist).Error; err != nil {
+	if err := h.app.Database.Where("user_id = ? AND type = ?", context.Sender().ID, models.TVShowType).Find(&watchlist).Error; err != nil {
 		log.Print(err)
 		return context.Send(messages.InternalError)
 	}
@@ -84,7 +84,7 @@ func (h *WatchlistHandler) handleMovieWatchlist(context telebot.Context, msgId s
 
 	var watchlist []models.Watchlist
 
-	if err := h.Database.Where("user_id = ? AND type = ?", context.Sender().ID, models.MovieType).Find(&watchlist).Error; err != nil {
+	if err := h.app.Database.Where("user_id = ? AND type = ?", context.Sender().ID, models.MovieType).Find(&watchlist).Error; err != nil {
 		log.Print(err)
 		return context.Send(messages.InternalError)
 	}
@@ -121,7 +121,7 @@ func (h *WatchlistHandler) handleFullWatchlist(context telebot.Context, msgId st
 
 	var watchlist []models.Watchlist
 
-	if err := h.Database.Where("user_id = ?", context.Sender().ID).Find(&watchlist).Error; err != nil {
+	if err := h.app.Database.Where("user_id = ?", context.Sender().ID).Find(&watchlist).Error; err != nil {
 		log.Print(err)
 		return context.Send(messages.InternalError)
 	}
@@ -169,13 +169,13 @@ func (h *WatchlistHandler) handleWatchlistInfo(context telebot.Context, data str
 	}
 
 	if movieType == string(models.MovieType) {
-		movieData, err := movie.GetMovie(parsedId, context.Sender().ID)
+		movieData, err := movie.GetMovie(h.app, parsedId, context.Sender().ID)
 		if err != nil {
 			log.Print(err)
 			return context.Send(messages.InternalError)
 		}
 
-		err = movie.ShowMovie(context, movieData, false)
+		err = movie.ShowMovie(h.app, context, movieData, false)
 		if err != nil {
 			log.Print(err)
 			return context.Send(messages.InternalError)
@@ -183,13 +183,13 @@ func (h *WatchlistHandler) handleWatchlistInfo(context telebot.Context, data str
 
 		return context.Respond(&telebot.CallbackResponse{Text: messages.MovieSelected})
 	} else {
-		tvData, err := tv.GetTV(parsedId, context.Sender().ID)
+		tvData, err := tv.GetTV(h.app, parsedId, context.Sender().ID)
 		if err != nil {
 			log.Print(err)
 			return err
 		}
 
-		err = tv.ShowTV(context, tvData, false)
+		err = tv.ShowTV(h.app, context, tvData, false)
 		if err != nil {
 			log.Print(err)
 			return err
@@ -204,12 +204,12 @@ func (h *WatchlistHandler) handleBackToPagination(context telebot.Context, showT
 
 	var watchlist []models.Watchlist
 	if showType == string(models.AllType) {
-		if err := h.Database.Where("user_id = ?", context.Sender().ID).Find(&watchlist).Error; err != nil {
+		if err := h.app.Database.Where("user_id = ?", context.Sender().ID).Find(&watchlist).Error; err != nil {
 			log.Print(err)
 			return context.Send(messages.InternalError)
 		}
 	} else {
-		if err := h.Database.Where("user_id = ? AND type = ?", context.Sender().ID, showType).Find(&watchlist).Error; err != nil {
+		if err := h.app.Database.Where("user_id = ? AND type = ?", context.Sender().ID, showType).Find(&watchlist).Error; err != nil {
 			log.Print(err)
 			return context.Send(messages.InternalError)
 		}
@@ -285,12 +285,12 @@ func (h *WatchlistHandler) WatchlistCallback(context telebot.Context) error {
 		var watchlist []models.Watchlist
 		// Determine watchlist type and fetch data
 		if watchlistType == string(models.AllType) {
-			if err = h.Database.Where("user_id = ?", context.Sender().ID).Find(&watchlist).Error; err != nil {
+			if err = h.app.Database.Where("user_id = ?", context.Sender().ID).Find(&watchlist).Error; err != nil {
 				log.Print(err)
 				return context.Send(messages.InternalError)
 			}
 		} else {
-			if err = h.Database.Where("user_id = ? AND type = ?", context.Sender().ID, watchlistType).Find(&watchlist).Error; err != nil {
+			if err = h.app.Database.Where("user_id = ? AND type = ?", context.Sender().ID, watchlistType).Find(&watchlist).Error; err != nil {
 				log.Print(err)
 				return context.Send(messages.InternalError)
 			}

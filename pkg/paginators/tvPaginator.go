@@ -1,11 +1,11 @@
 package paginators
 
 import (
-	"github.com/erkinov-wtf/movie-manager-bot/internal/api/media/tv"
-	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/cache/entities"
+	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/cache"
+	"github.com/erkinov-wtf/movie-manager-bot/internal/tmdb/tv"
 )
 
-func PaginateTV(tvCache *entities.Cache, page, tvCount int) []tv.TV {
+func PaginateTV(tvCache *cache.Item, page, tvCount int) []tv.TV {
 	const itemsPerPage = 3
 
 	start := (page - 1) * itemsPerPage

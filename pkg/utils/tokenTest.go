@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/erkinov-wtf/movie-manager-bot/internal/config"
+	appCfg "github.com/erkinov-wtf/movie-manager-bot/internal/config/app"
 	"io"
 	"log"
 	"net/http"
@@ -16,7 +16,7 @@ type loginResponse struct {
 	Error     string `json:"status_message,omitempty"`
 }
 
-func TestApiToken(token string) bool {
+func TestApiToken(app *appCfg.App, token string) bool {
 	if token == "" {
 		log.Print("TestApiToken: empty token provided")
 		return false
@@ -25,7 +25,7 @@ func TestApiToken(token string) bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	url := fmt.Sprintf("%s?api_key=%s", config.Cfg.Endpoints.LoginUrl, token)
+	url := fmt.Sprintf("%s?api_key=%s", app.Cfg.Endpoints.LoginUrl, token)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		log.Printf("TestApiToken: failed to create request: %v", err)

@@ -1,25 +1,28 @@
 package cache
 
-import "sync"
+import (
+	"gorm.io/gorm"
+	"sync"
+)
 
 type Manager struct {
-	MovieCache  map[int]*Cache
-	TVShowCache map[int]*Cache
+	MovieCache  map[int]*Item
+	TVShowCache map[int]*Item
 	UserCache   *UserCacheData
 	ImageCache  *Image
 	mu          sync.RWMutex
 }
 
-func NewCacheManager() *Manager {
+func NewCacheManager(db *gorm.DB) *Manager {
 	return &Manager{
-		MovieCache:  make(map[int]*Cache),
-		TVShowCache: make(map[int]*Cache),
-		UserCache:   NewUserCache(),
+		MovieCache:  make(map[int]*Item),
+		TVShowCache: make(map[int]*Item),
+		UserCache:   NewUserCache(db),
 		ImageCache:  NewImageCache(),
 	}
 }
 
-func (cm *Manager) GetMovieCache(userId int) *Cache {
+func (cm *Manager) GetMovieCache(userId int) *Item {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 
@@ -29,7 +32,7 @@ func (cm *Manager) GetMovieCache(userId int) *Cache {
 	return cm.MovieCache[userId]
 }
 
-func (cm *Manager) GetTVShowCache(userId int) *Cache {
+func (cm *Manager) GetTVShowCache(userId int) *Item {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 

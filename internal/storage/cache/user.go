@@ -32,9 +32,11 @@ type SearchState struct {
 	IsTVShowSearch  bool
 }
 
-func NewUserCache() *UserCacheData {
-	var userCache UserCacheData
-	userCache.items = make(map[int64]UserCacheItem)
+func NewUserCache(db *gorm.DB) *UserCacheData {
+	userCache := UserCacheData{
+		items: make(map[int64]UserCacheItem),
+		db:    db,
+	}
 	log.Print("User cache setup")
 	return &userCache
 }
@@ -108,7 +110,7 @@ func (c *UserCacheData) Fetch(userId int64) (isActive bool, data *UserCacheItem)
 	}
 
 	c.items[userId] = userCache
-	log.Printf("User ID %d found in database and added to cache", userId)
+	log.Printf("User Id %d found in database and added to cache", userId)
 
 	return true, &userCache
 }
@@ -119,7 +121,7 @@ func (c *UserCacheData) UpdateTokenState(userId int64, isTokenWaiting bool) {
 
 	userCache, found := c.items[userId]
 	if !found || userCache.ExpireTime.Before(time.Now()) {
-		log.Printf("User ID %d not found in cache or cache expired", userId)
+		log.Printf("User Id %d not found in cache or cache expired", userId)
 		return
 	}
 
@@ -128,7 +130,7 @@ func (c *UserCacheData) UpdateTokenState(userId int64, isTokenWaiting bool) {
 
 	c.items[userId] = userCache
 
-	log.Printf("Updated token state for user ID %d: TokenWaiting=%v, Token=%s", userId, isTokenWaiting, userCache.ApiToken.Token)
+	log.Printf("Updated token state for user Id %d: TokenWaiting=%v, Token=%s", userId, isTokenWaiting, userCache.ApiToken.Token)
 }
 
 func (c *UserCacheData) SetSearchStartTrue(userId int64, isMovieSearch bool) {
@@ -143,7 +145,7 @@ func (c *UserCacheData) SetSearchStartTrue(userId int64, isMovieSearch bool) {
 		}
 
 		c.items[userId] = userCache
-		log.Printf("Updated search state to TRUE for user ID %d", userId)
+		log.Printf("Updated search state to TRUE for user Id %d", userId)
 	}
 }
 
@@ -159,7 +161,7 @@ func (c *UserCacheData) SetSearchStartFalse(userId int64) {
 		}
 
 		c.items[userId] = userCache
-		log.Printf("Updated search state to FALSE for user ID %d", userId)
+		log.Printf("Updated search state to FALSE for user Id %d", userId)
 	}
 }
 

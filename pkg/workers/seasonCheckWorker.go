@@ -5,9 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/erkinov-wtf/movie-manager-bot/internal/api/media/image"
-	tv2 "github.com/erkinov-wtf/movie-manager-bot/internal/api/media/tv"
-	models2 "github.com/erkinov-wtf/movie-manager-bot/internal/models"
+	"github.com/erkinov-wtf/movie-manager-bot/internal/config/app"
+	"github.com/erkinov-wtf/movie-manager-bot/internal/models"
+	"github.com/erkinov-wtf/movie-manager-bot/internal/tmdb/image"
+	"github.com/erkinov-wtf/movie-manager-bot/internal/tmdb/tv"
 	"gopkg.in/telebot.v3"
 	"log"
 	"os"
@@ -15,25 +16,25 @@ import (
 	"time"
 )
 
-func (c *WorkerApiClient) GetShowDetails(apiID int, userId int64) (*tv2.TV, error) {
-	log.Printf("[Worker] Attempting to fetch details for show ID: %d", apiID)
+func (c *WorkerApiClient) GetShowDetails(app *app.App, apiId int, userId int64) (*tv.TV, error) {
+	log.Printf("[Worker] Attempting to fetch details for show Id: %d", apiId)
 
 	err := c.limiter.Wait(context.Background())
 	if err != nil {
-		log.Printf("[Worker] Rate limit wait error for show %d: %v", apiID, err)
+		log.Printf("[Worker] Rate limit wait error for show %d: %v", apiId, err)
 		return nil, fmt.Errorf("rate limiter error: %w", err)
 	}
 
 	start := time.Now()
-	tvData, err := tv2.GetTV(apiID, userId)
+	tvData, err := tv.GetTV(app, apiId, userId)
 	duration := time.Since(start)
 
 	if err != nil {
-		log.Printf("[Worker] API request failed for show %d after %v: %v", apiID, duration, err)
+		log.Printf("[Worker] API request failed for show %d after %v: %v", apiId, duration, err)
 		return nil, fmt.Errorf("failed to get TV show details: %w", err)
 	}
 
-	log.Printf("[Worker] Successfully fetched show %d (%s) in %v", apiID, tvData.Name, duration)
+	log.Printf("[Worker] Successfully fetched show %d (%s) in %v", apiId, tvData.Name, duration)
 	return tvData, nil
 }
 
@@ -86,13 +87,13 @@ func (c *TVShowChecker) StartChecking(ctx context.Context, checkInterval time.Du
 }
 
 type ShowRequest struct {
-	User *models2.User
-	Show models2.TVShows
+	User *models.User
+	Show models.TVShows
 }
 
 func (c *TVShowChecker) checkAllShows() {
-	var users []models2.User
-	if err := c.db.Find(&users).Error; err != nil {
+	var users []models.User
+	if err := c.app.Database.Find(&users).Error; err != nil {
 		log.Printf("[Worker] Error fetching users: %v", err)
 		return
 	}
@@ -106,21 +107,21 @@ func (c *TVShowChecker) checkAllShows() {
 
 	for i := 0; i < workerCount; i++ {
 		wg.Add(1)
-		go func(workerID int) {
-			log.Printf("[Worker-%d] Started", workerID)
+		go func(workerId int) {
+			log.Printf("[Worker-%d] Started", workerId)
 			c.showWorker(showChan, &wg)
-			log.Printf("[Worker-%d] Finished", workerID)
+			log.Printf("[Worker-%d] Finished", workerId)
 		}(i)
 	}
 
 	showCount := 0
 	for _, user := range users {
-		var shows []models2.TVShows
-		if err := c.db.Where("user_id = ?", user.ID).Find(&shows).Error; err != nil {
-			log.Printf("[Worker] Error fetching shows for user %d: %v", user.ID, err)
+		var shows []models.TVShows
+		if err := c.app.Database.Where("user_id = ?", user.Id).Find(&shows).Error; err != nil {
+			log.Printf("[Worker] Error fetching shows for user %d: %v", user.Id, err)
 			continue
 		}
-		log.Printf("[Worker] Found %d shows for user %d", len(shows), user.ID)
+		log.Printf("[Worker] Found %d shows for user %d", len(shows), user.Id)
 
 		for _, show := range shows {
 			showCount++
@@ -142,37 +143,37 @@ func (c *TVShowChecker) showWorker(showChan chan ShowRequest, wg *sync.WaitGroup
 
 	for req := range showChan {
 		start := time.Now()
-		log.Printf("[Worker] Processing show %d for user %d", req.Show.ApiID, req.User.ID)
+		log.Printf("[Worker] Processing show %d for user %d", req.Show.ApiId, req.User.Id)
 		c.processShow(req.User, req.Show)
-		log.Printf("[Worker] Completed processing show %d in %v", req.Show.ApiID, time.Since(start))
+		log.Printf("[Worker] Completed processing show %d in %v", req.Show.ApiId, time.Since(start))
 	}
 }
 
-func (c *TVShowChecker) processShow(user *models2.User, show models2.TVShows) {
-	details, err := c.apiClient.GetShowDetails(int(show.ApiID), user.ID)
+func (c *TVShowChecker) processShow(user *models.User, show models.TVShows) {
+	details, err := c.apiClient.GetShowDetails(c.app, int(show.ApiId), user.Id)
 	if err != nil {
-		log.Printf("[Worker] Error fetching show details for %d: %v", show.ApiID, err)
+		log.Printf("[Worker] Error fetching show details for %d: %v", show.ApiId, err)
 		return
 	}
 
 	log.Printf("[Worker] Current seasons for show %d: DB=%d, API=%d",
-		show.ApiID, show.Seasons, details.Seasons)
+		show.ApiId, show.Seasons, details.Seasons)
 
 	if details.Seasons > show.Seasons {
 		log.Printf("[Worker] New season detected for show %d (%s): %d -> %d",
-			show.ApiID, details.Name, show.Seasons, details.Seasons)
+			show.ApiId, details.Name, show.Seasons, details.Seasons)
 		c.notifyUser(*user, &show, details)
 	} else {
-		log.Printf("[Worker] No new seasons for show %d (%s)", show.ApiID, details.Name)
+		log.Printf("[Worker] No new seasons for show %d (%s)", show.ApiId, details.Name)
 	}
 }
 
-func (c *TVShowChecker) notifyUser(user models2.User, watched *models2.TVShows, show *tv2.TV) {
-	log.Printf("[Worker] Sending notification to user %d for show %s (ID: %d, Seasons: %d)",
-		user.ID, show.Name, show.ID, show.Seasons)
+func (c *TVShowChecker) notifyUser(user models.User, watched *models.TVShows, show *tv.TV) {
+	log.Printf("[Worker] Sending notification to user %d for show %s (Id: %d, Seasons: %d)",
+		user.Id, show.Name, show.Id, show.Seasons)
 
 	// Retrieve TV poster image
-	imgBuffer, err := image.GetImage(show.PosterPath)
+	imgBuffer, err := image.GetImage(c.app, show.PosterPath)
 	if err != nil {
 		log.Printf("[Worker] Error retrieving image: %v", err)
 		return
@@ -194,7 +195,7 @@ func (c *TVShowChecker) notifyUser(user models2.User, watched *models2.TVShows, 
 	)
 
 	replyMarkup := &telebot.ReplyMarkup{}
-	backButton := replyMarkup.Data("📝 Update Data", fmt.Sprintf("tv|select_seasons|%v", show.ID))
+	backButton := replyMarkup.Data("📝 Update Data", fmt.Sprintf("tv|select_seasons|%v", show.Id))
 	replyMarkup.Inline(
 		replyMarkup.Row(backButton),
 	)
@@ -205,7 +206,7 @@ func (c *TVShowChecker) notifyUser(user models2.User, watched *models2.TVShows, 
 		Caption: caption,
 	}
 
-	_, err = c.bot.Send(&telebot.User{ID: user.ID}, imageFile, replyMarkup, telebot.ModeMarkdown)
+	_, err = c.bot.Send(&telebot.User{ID: user.Id}, imageFile, replyMarkup, telebot.ModeMarkdown)
 	if err != nil {
 		log.Printf("[Worker] Failed to send TV details: %v", err)
 		return

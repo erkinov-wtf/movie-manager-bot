@@ -8,18 +8,18 @@ type CacheItem struct {
 	Value interface{}
 }
 
-type Cache struct {
+type Item struct {
 	items map[int]CacheItem
 	mu    sync.RWMutex
 }
 
-func NewCache() *Cache {
-	return &Cache{
+func NewCache() *Item {
+	return &Item{
 		items: make(map[int]CacheItem),
 	}
 }
 
-func (c *Cache) Set(key int, value interface{}) {
+func (c *Item) Set(key int, value interface{}) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.items[key] = CacheItem{
@@ -27,7 +27,7 @@ func (c *Cache) Set(key int, value interface{}) {
 	}
 }
 
-func (c *Cache) Get(key int) (interface{}, bool) {
+func (c *Item) Get(key int) (interface{}, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -39,7 +39,7 @@ func (c *Cache) Get(key int) (interface{}, bool) {
 	return item.Value, true
 }
 
-func (c *Cache) Clear() {
+func (c *Item) Clear() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.items = make(map[int]CacheItem)

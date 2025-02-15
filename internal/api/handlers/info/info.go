@@ -41,7 +41,7 @@ func (h *InfoHandler) Info(context telebot.Context) error {
 func (h *InfoHandler) handleTVDetails(context telebot.Context, msgId string) error {
 	var watchedShows []models2.TVShows
 
-	if err := h.Database.Where("user_id = ?", context.Sender().ID).Find(&watchedShows).Error; err != nil {
+	if err := h.app.Database.Where("user_id = ?", context.Sender().ID).Find(&watchedShows).Error; err != nil {
 		log.Printf("cant get all tv shows: %v", err.Error())
 		return context.Send(messages.InternalError)
 	}
@@ -83,7 +83,7 @@ func (h *InfoHandler) handleTVDetails(context telebot.Context, msgId string) err
 func (h *InfoHandler) handleMovieDetails(context telebot.Context, msgId string) error {
 	var watchedMovies []models2.Movie
 
-	if err := h.Database.Where("user_id = ?", context.Sender().ID).Find(&watchedMovies).Error; err != nil {
+	if err := h.app.Database.Where("user_id = ?", context.Sender().ID).Find(&watchedMovies).Error; err != nil {
 		log.Printf("cant get all tv movies: %v", err.Error())
 		return context.Send(messages.InternalError)
 	}
@@ -126,12 +126,12 @@ func (h *InfoHandler) handleFullDetails(context telebot.Context, data string) er
 	var watchedMovies []models2.Movie
 	var watchedShows []models2.TVShows
 
-	if err := h.Database.Where("user_id = ?", context.Sender().ID).Find(&watchedMovies).Error; err != nil {
+	if err := h.app.Database.Where("user_id = ?", context.Sender().ID).Find(&watchedMovies).Error; err != nil {
 		log.Printf("cant get all movies: %v", err.Error())
 		return context.Send(messages.InternalError)
 	}
 
-	if err := h.Database.Where("user_id = ?", context.Sender().ID).Find(&watchedShows).Error; err != nil {
+	if err := h.app.Database.Where("user_id = ?", context.Sender().ID).Find(&watchedShows).Error; err != nil {
 		log.Printf("cant get all tv shows: %v", err.Error())
 		return context.Send(messages.InternalError)
 	}

@@ -18,13 +18,13 @@ import (
 )
 
 var (
-	moviesCache = make(map[int64]*cache.Cache)
+	moviesCache = make(map[int64]*cache.Item)
 	pagePointer = make(map[int64]*int)
 	maxPage     = make(map[int64]int)
 	movieCount  = make(map[int64]int)
 )
 
-func (*MovieHandler) SearchMovie(context telebot.Context) error {
+func (h *MovieHandler) SearchMovie(context telebot.Context) error {
 	log.Print(messages.MovieCommand)
 	userId := context.Sender().ID
 
@@ -44,7 +44,7 @@ func (*MovieHandler) SearchMovie(context telebot.Context) error {
 	}
 
 	// Fetch search results
-	movieData, err := search.SearchMovie(searchQuery, userId)
+	movieData, err := search.SearchMovie(h.app, searchQuery, userId)
 	if err != nil || movieData.TotalResults == 0 {
 		_, err = context.Bot().Edit(msg, fmt.Sprintf("No movies found for *%s*", context.Message().Payload), telebot.ModeMarkdown)
 		if err != nil {
@@ -86,13 +86,13 @@ func (h *MovieHandler) handleMovieDetails(context telebot.Context, data string) 
 		return err
 	}
 
-	movieData, err := movie.GetMovie(parsedId, context.Sender().ID)
+	movieData, err := movie.GetMovie(h.app, parsedId, context.Sender().ID)
 	if err != nil {
 		log.Print(err)
 		return err
 	}
 
-	err = movie.ShowMovie(context, movieData, true)
+	err = movie.ShowMovie(h.app, context, movieData, true)
 	if err != nil {
 		log.Print(err)
 		return err
@@ -102,7 +102,7 @@ func (h *MovieHandler) handleMovieDetails(context telebot.Context, data string) 
 }
 
 func (h *MovieHandler) handleWatchedDetails(context telebot.Context, movieIdStr string) error {
-	tx := h.Database.Begin()
+	tx := h.app.Database.Begin()
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
@@ -132,15 +132,15 @@ func (h *MovieHandler) handleWatchedDetails(context telebot.Context, movieIdStr 
 		return fmt.Errorf("database error: %v", result.Error)
 	}
 
-	movieData, err := movie.GetMovie(movieId, context.Sender().ID)
+	movieData, err := movie.GetMovie(h.app, movieId, context.Sender().ID)
 	if err != nil {
 		log.Printf("couldnt retrive movie from api: %v", err.Error())
 		return context.Send(messages.InternalError)
 	}
 
 	newMovie := models.Movie{
-		UserID:  context.Sender().ID,
-		ApiID:   movieData.ID,
+		UserId:  context.Sender().ID,
+		ApiId:   movieData.ID,
 		Title:   movieData.Title,
 		Runtime: movieData.Runtime,
 	}
@@ -173,21 +173,21 @@ func (h *MovieHandler) handleWatchlist(context telebot.Context, data string) err
 		return context.Send(messages.WatchedMovie)
 	}
 
-	movieData, err := movie.GetMovie(movieId, context.Sender().ID)
+	movieData, err := movie.GetMovie(h.app, movieId, context.Sender().ID)
 	if err != nil {
 		log.Print(err)
 		return context.Send(messages.WatchedMovie)
 	}
 
 	newWatchlist := models.Watchlist{
-		UserID:    context.Sender().ID,
+		UserId:    context.Sender().ID,
 		ShowApiId: movieData.ID,
 		Type:      models.MovieType,
 		Title:     movieData.Title,
 		Image:     movieData.PosterPath,
 	}
 
-	if err = h.Database.Create(&newWatchlist).Error; err != nil {
+	if err = h.app.Database.Create(&newWatchlist).Error; err != nil {
 		log.Print(err)
 		return context.Send(messages.WatchedMovie)
 	}

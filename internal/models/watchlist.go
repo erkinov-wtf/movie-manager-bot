@@ -7,8 +7,8 @@ import (
 )
 
 type Watchlist struct {
-	ID        uuid.UUID      `gorm:"type:uuid;primaryKey"`
-	UserID    int64          `gorm:"type:uint;uniqueIndex:user_show_api_unique"`
+	Id        uuid.UUID      `gorm:"type:uuid;primaryKey"`
+	UserId    int64          `gorm:"type:uint;uniqueIndex:user_show_api_unique"`
 	ShowApiId int64          `gorm:"type:uint;uniqueIndex:user_show_api_unique"`
 	Type      Type           `gorm:"type:varchar"`
 	Title     string         `gorm:"type:varchar"`
@@ -17,11 +17,11 @@ type Watchlist struct {
 	UpdatedAt time.Time      `gorm:"column:updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at"`
 
-	User User `gorm:"foreignKey:UserID" json:"user"`
+	User User `gorm:"foreignKey:UserId" json:"user"`
 }
 
 func (m *Watchlist) BeforeCreate(*gorm.DB) (err error) {
-	m.ID = uuid.New()
+	m.Id = uuid.New()
 	return nil
 }
 

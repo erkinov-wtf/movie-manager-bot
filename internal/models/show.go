@@ -7,9 +7,9 @@ import (
 )
 
 type TVShows struct {
-	ID        uuid.UUID      `gorm:"type:uuid;primaryKey"`
-	UserID    int64          `gorm:"type:uint;uniqueIndex:user_api_unique"`
-	ApiID     int64          `gorm:"type:uint;uniqueIndex:user_api_unique"`
+	Id        uuid.UUID      `gorm:"type:uuid;primaryKey"`
+	UserId    int64          `gorm:"type:uint;uniqueIndex:user_api_unique"`
+	ApiId     int64          `gorm:"type:uint;uniqueIndex:user_api_unique"`
 	Name      string         `gorm:"type:varchar"`
 	Seasons   int64          `gorm:"type:uint"`
 	Episodes  int64          `gorm:"type:uint"`
@@ -19,10 +19,10 @@ type TVShows struct {
 	UpdatedAt time.Time      `gorm:"column:updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at"`
 
-	User User `gorm:"foreignKey:UserID" json:"user"`
+	User User `gorm:"foreignKey:UserId" json:"user"`
 }
 
 func (tv *TVShows) BeforeCreate(*gorm.DB) (err error) {
-	tv.ID = uuid.New()
+	tv.Id = uuid.New()
 	return nil
 }

@@ -1,10 +1,10 @@
 package workers
 
 import (
-	"github.com/erkinov-wtf/movie-manager-bot/internal/api/media/tv"
+	"github.com/erkinov-wtf/movie-manager-bot/internal/config/app"
+	"github.com/erkinov-wtf/movie-manager-bot/internal/tmdb/tv"
 	"golang.org/x/time/rate"
 	"gopkg.in/telebot.v3"
-	"gorm.io/gorm"
 	"log"
 	"os"
 	"path/filepath"
@@ -17,9 +17,9 @@ type CheckerState struct {
 }
 
 type TVShowChecker struct {
-	db        *gorm.DB
-	bot       *telebot.Bot
+	app       *app.App
 	apiClient TVShowAPIClient
+	bot       *telebot.Bot
 	limiter   *rate.Limiter
 	statePath string
 	stateMux  sync.Mutex
@@ -30,7 +30,7 @@ type WorkerApiClient struct {
 }
 
 type TVShowAPIClient interface {
-	GetShowDetails(apiID int, userId int64) (*tv.TV, error)
+	GetShowDetails(app *app.App, apiId int, userId int64) (*tv.TV, error)
 }
 
 func NewWorkerApiClient(requestsPerSecond float64) *WorkerApiClient {
@@ -40,7 +40,7 @@ func NewWorkerApiClient(requestsPerSecond float64) *WorkerApiClient {
 	}
 }
 
-func NewTVShowChecker(db *gorm.DB, bot *telebot.Bot, apiClient TVShowAPIClient) *TVShowChecker {
+func NewTVShowChecker(app *app.App, bot *telebot.Bot, apiClient TVShowAPIClient) *TVShowChecker {
 	log.Printf("[Worker] Initializing TV Show Checker")
 
 	stateDir := "worker_state"
@@ -49,7 +49,7 @@ func NewTVShowChecker(db *gorm.DB, bot *telebot.Bot, apiClient TVShowAPIClient) 
 	}
 
 	return &TVShowChecker{
-		db:        db,
+		app:       app,
 		bot:       bot,
 		apiClient: apiClient,
 		statePath: filepath.Join(stateDir, "tv_checker_state.json"),

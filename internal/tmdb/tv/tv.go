@@ -17,7 +17,7 @@ import (
 )
 
 func GetTV(app *appCfg.App, tvId int, userId int64) (*TV, error) {
-	url := utils.MakeUrl(fmt.Sprintf("%s/%v", app.Cfg.Endpoints.GetTv, tvId), nil, userId)
+	url := utils.MakeUrl(app, fmt.Sprintf("%s/%v", app.Cfg.Endpoints.GetTv, tvId), nil, userId)
 
 	resp, err := app.TMDBClient.HttpClient.Get(url)
 	if err != nil {
@@ -40,7 +40,7 @@ func GetTV(app *appCfg.App, tvId int, userId int64) (*TV, error) {
 }
 
 func GetSeason(app *appCfg.App, tvId, seasonNumber int, userId int64) (*Season, error) {
-	url := utils.MakeUrl(fmt.Sprintf("%s/%v/season/%v", app.Cfg.Endpoints.GetTv, tvId, seasonNumber), nil, userId)
+	url := utils.MakeUrl(app, fmt.Sprintf("%s/%v/season/%v", app.Cfg.Endpoints.GetTv, tvId, seasonNumber), nil, userId)
 
 	resp, err := app.TMDBClient.HttpClient.Get(url)
 	if err != nil {
@@ -90,12 +90,12 @@ func ShowTV(app *appCfg.App, context telebot.Context, tvData *TV, isTVShow bool)
 
 	// Check if the movie is already in the user's watchlist
 	var watchlist []models.Watchlist
-	if err = app.Database.Where("show_api_id = ? AND user_id = ?", tvData.ID, context.Sender().ID).Find(&watchlist).Error; err != nil {
+	if err = app.Database.Where("show_api_id = ? AND user_id = ?", tvData.Id, context.Sender().ID).Find(&watchlist).Error; err != nil {
 		log.Printf("Database error: %v", err)
 		return context.Send(messages.WatchlistCheckError)
 	}
 
-	replyMarkup := generateReplyMarkup(tvData.ID, len(watchlist) > 0, isTVShow)
+	replyMarkup := generateReplyMarkup(tvData.Id, len(watchlist) > 0, isTVShow)
 
 	// Delete the original context message
 	if err = context.Delete(); err != nil {
@@ -115,7 +115,7 @@ func ShowTV(app *appCfg.App, context telebot.Context, tvData *TV, isTVShow bool)
 		return context.Send(messages.InternalError)
 	}
 
-	log.Printf("TV details sent successfully for TV ID: %d", tvData.ID)
+	log.Printf("TV details sent successfully for TV Id: %d", tvData.Id)
 	return nil
 }
 

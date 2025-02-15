@@ -20,7 +20,7 @@ type Resolver struct {
 
 func NewResolver(app *app.App) *Resolver {
 	return &Resolver{
-		DefaultHandler:   defaults.NewDefaultHandler(app),
+		DefaultHandler:   defaults.NewDefaultHandler(app, movie.NewMovieHandler(app), tv.NewTVHandler(app)),
 		MovieHandler:     movie.NewMovieHandler(app),
 		TVHandler:        tv.NewTVHandler(app),
 		InfoHandler:      info.NewInfoHandler(app),

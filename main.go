@@ -22,7 +22,7 @@ func main() {
 	tmdbClient := tmdb.NewClient(cfg)
 	log.Print("api client initialized")
 	db := database.MustLoadDb(cfg)
-	cacheManager := cache.NewCacheManager()
+	cacheManager := cache.NewCacheManager(db)
 
 	appCfg := app.NewApp(cfg, db, tmdbClient, cacheManager)
 
@@ -39,11 +39,11 @@ func main() {
 
 	container := api.NewResolver(appCfg)
 
-	routes.SetupDefaultRoutes(bot, container)
-	routes.SetupMovieRoutes(bot, container)
-	routes.SetupTVRoutes(bot, container)
-	routes.SetupInfoRoutes(bot, container)
-	routes.SetupWatchlistRoutes(bot, container)
+	routes.SetupDefaultRoutes(bot, container, appCfg)
+	routes.SetupMovieRoutes(bot, container, appCfg)
+	routes.SetupTVRoutes(bot, container, appCfg)
+	routes.SetupInfoRoutes(bot, container, appCfg)
+	routes.SetupWatchlistRoutes(bot, container, appCfg)
 	log.Print("bot handlers setup")
 
 	// Create a cancellable context
@@ -52,7 +52,7 @@ func main() {
 
 	// Start the checker in a separate goroutine
 	apiClient := workers.NewWorkerApiClient(50)
-	checker := workers.NewTVShowChecker(database.DB, bot, apiClient)
+	checker := workers.NewTVShowChecker(appCfg, bot, apiClient)
 	go checker.StartChecking(ctx, 336*time.Hour)
 
 	log.Print("bot started")

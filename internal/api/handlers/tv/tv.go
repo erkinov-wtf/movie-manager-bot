@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	tvCache        = make(map[int64]*cache.Cache)
+	tvCache        = make(map[int64]*cache.Item)
 	pagePointer    = make(map[int64]*int)
 	maxPage        = make(map[int64]int)
 	tvCount        = make(map[int64]int)
@@ -38,13 +38,13 @@ func (h *TVHandler) SearchTV(context telebot.Context) error {
 		return context.Send(messages.TVShowEmptyPayload)
 	}
 
-	msg, err := context.Bot().Send(context.Chat(), fmt.Sprintf("looking for *%v*...", searchQuery), telebot.ModeMarkdown)
+	msg, err := context.Bot().Send(context.Chat(), fmt.Sprintf("Looking for *%v*...", searchQuery), telebot.ModeMarkdown)
 	if err != nil {
 		log.Print(err)
 		return context.Send(messages.InternalError)
 	}
 
-	tvData, err := search.SearchTV(searchQuery, userId)
+	tvData, err := search.SearchTV(h.app, searchQuery, userId)
 	if err != nil {
 		log.Print(err)
 		return context.Send(messages.InternalError)
@@ -92,13 +92,13 @@ func (h *TVHandler) handleTVDetails(context telebot.Context, data string) error 
 		return context.Send(messages.InternalError)
 	}
 
-	tvData, err := tv.GetTV(parsedId, context.Sender().ID)
+	tvData, err := tv.GetTV(h.app, parsedId, context.Sender().ID)
 	if err != nil {
 		log.Print(err)
 		return context.Send(messages.InternalError)
 	}
 
-	err = tv.ShowTV(context, tvData, true)
+	err = tv.ShowTV(h.app, context, tvData, true)
 	if err != nil {
 		log.Print(err)
 		return context.Send(messages.InternalError)
@@ -112,7 +112,7 @@ func (h *TVHandler) handleSelectSeasons(context telebot.Context, tvId string) er
 	TVId, _ := strconv.Atoi(tvId)
 
 	var watchedSeasons int = 0
-	if err := h.Database.Model(&models.TVShows{}).
+	if err := h.app.Database.Model(&models.TVShows{}).
 		Select("seasons").
 		Where("api_id = ? AND user_id = ?", TVId, userId).
 		Scan(&watchedSeasons).Error; err != nil {
@@ -122,14 +122,14 @@ func (h *TVHandler) handleSelectSeasons(context telebot.Context, tvId string) er
 		}
 	}
 
-	tvShow, err := tv.GetTV(TVId, context.Sender().ID)
+	tvShow, err := tv.GetTV(h.app, TVId, context.Sender().ID)
 	if err != nil {
 		log.Printf("Error fetching TV show: %v", err)
 		return context.Send(messages.InternalError)
 	}
 
 	if watchedSeasons > 0 {
-		log.Printf("userId %v already watched tv show name %s, id %v", userId, tvShow.Name, tvShow.ID)
+		log.Printf("userId %v already watched tv show name %s, id %v", userId, tvShow.Name, tvShow.Id)
 	}
 
 	selectedTvShow[userId] = tvShow
@@ -166,7 +166,7 @@ func (h *TVHandler) handleSelectSeasons(context telebot.Context, tvId string) er
 
 func (h *TVHandler) handleWatched(context telebot.Context, data string) error {
 	// begin transaction
-	tx := h.Database.Begin()
+	tx := h.app.Database.Begin()
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
@@ -182,7 +182,7 @@ func (h *TVHandler) handleWatched(context telebot.Context, data string) error {
 	var watchedSeasons int = 0
 	if err := tx.Model(&models.TVShows{}).
 		Select("seasons").
-		Where("api_id = ? AND user_id = ?", selectedTvShow[userId].ID, userId).
+		Where("api_id = ? AND user_id = ?", selectedTvShow[userId].Id, userId).
 		Scan(&watchedSeasons).Error; err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			log.Printf("Database error: %v", err)
@@ -202,7 +202,7 @@ func (h *TVHandler) handleWatched(context telebot.Context, data string) error {
 
 	var episodes, runtime int64
 	for i := 1; i <= seasonNum; i++ {
-		tvSeason, err := tv.GetSeason(int(selectedTvShow[userId].ID), i, userId)
+		tvSeason, err := tv.GetSeason(h.app, int(selectedTvShow[userId].Id), i, userId)
 		if err != nil {
 			log.Print(err.Error())
 			return context.Send(messages.InternalError)
@@ -211,13 +211,13 @@ func (h *TVHandler) handleWatched(context telebot.Context, data string) error {
 		for _, episode := range tvSeason.Episodes {
 			episodes++
 			runtime += episode.Runtime
-			log.Printf("TV Show: %v, Season: %v, Episode: %v, Runtime: %v", selectedTvShow[userId].ID, i, episode.EpisodeNumber, episode.Runtime)
+			log.Printf("TV Show: %v, Season: %v, Episode: %v, Runtime: %v", selectedTvShow[userId].Id, i, episode.EpisodeNumber, episode.Runtime)
 		}
 	}
 
 	newTv := models.TVShows{
-		UserID:   userId,
-		ApiID:    selectedTvShow[userId].ID,
+		UserId:   userId,
+		ApiId:    selectedTvShow[userId].Id,
 		Name:     selectedTvShow[userId].Name,
 		Seasons:  int64(seasonNum),
 		Episodes: episodes,
@@ -227,7 +227,7 @@ func (h *TVHandler) handleWatched(context telebot.Context, data string) error {
 
 	if watchedSeasons > 0 {
 		if err = tx.Model(&models.TVShows{}).
-			Where("api_id = ? AND user_id = ?", selectedTvShow[userId].ID, userId).
+			Where("api_id = ? AND user_id = ?", selectedTvShow[userId].Id, userId).
 			Updates(models.TVShows{Seasons: newTv.Seasons, Episodes: newTv.Episodes, Runtime: newTv.Runtime}).Error; err != nil {
 			log.Printf("cant update existing tv show data: %v", err.Error())
 			return context.Send(messages.InternalError)
@@ -239,7 +239,7 @@ func (h *TVHandler) handleWatched(context telebot.Context, data string) error {
 		}
 	}
 
-	if err = tx.Where("show_api_id = ? AND user_id = ?", selectedTvShow[userId].ID, userId).Delete(&models.Watchlist{}).Error; err != nil {
+	if err = tx.Where("show_api_id = ? AND user_id = ?", selectedTvShow[userId].Id, userId).Delete(&models.Watchlist{}).Error; err != nil {
 		log.Print(err)
 		return context.Send("Something went wrong")
 	}
@@ -262,21 +262,21 @@ func (h *TVHandler) handleWatchlist(context telebot.Context, tvId string) error 
 		return context.Send(messages.InternalError)
 	}
 
-	tvShow, err := tv.GetTV(tvShowId, context.Sender().ID)
+	tvShow, err := tv.GetTV(h.app, tvShowId, context.Sender().ID)
 	if err != nil {
 		log.Print(err)
 		return context.Send(messages.InternalError)
 	}
 
 	newWatchlist := models.Watchlist{
-		UserID:    context.Sender().ID,
-		ShowApiId: tvShow.ID,
+		UserId:    context.Sender().ID,
+		ShowApiId: tvShow.Id,
 		Type:      models.TVShowType,
 		Title:     tvShow.Name,
 		Image:     tvShow.PosterPath,
 	}
 
-	if err = h.Database.Create(&newWatchlist).Error; err != nil {
+	if err = h.app.Database.Create(&newWatchlist).Error; err != nil {
 		log.Print(err)
 		return context.Send(messages.InternalError)
 	}

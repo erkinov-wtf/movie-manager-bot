@@ -68,7 +68,7 @@ func DebugMessage(context telebot.Context, app *app.App) error {
 			"*🔹 Timestamp:* `%s`\n"+
 			"\n"+
 			"*👤 User Info:*\n"+
-			"• *ID:* `%d`\n"+
+			"• *Id:* `%d`\n"+
 			"• *Username:* `@%s`\n"+
 			"• *First Name:* `%s`\n"+
 			"• *Last Name:* `%s`\n"+

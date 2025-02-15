@@ -5,7 +5,7 @@ import (
 	movieType "github.com/erkinov-wtf/movie-manager-bot/internal/tmdb/movie"
 )
 
-func PaginateMovies(moviesCache *cache.Cache, page, movieCount int) []movieType.Movie {
+func PaginateMovies(moviesCache *cache.Item, page, movieCount int) []movieType.Movie {
 	const itemsPerPage = 3
 
 	start := (page - 1) * itemsPerPage

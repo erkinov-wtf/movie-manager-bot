@@ -16,9 +16,9 @@ import (
 	"net/http"
 )
 
-// GetMovie fetches movie details by ID from the API.
+// GetMovie fetches movie details by Id from the API.
 func GetMovie(app *appCfg.App, movieId int, userId int64) (*Movie, error) {
-	url := utils.MakeUrl(fmt.Sprintf("%s/%v", app.Cfg.Endpoints.GetMovie, movieId), nil, userId)
+	url := utils.MakeUrl(app, fmt.Sprintf("%s/%v", app.Cfg.Endpoints.GetMovie, movieId), nil, userId)
 
 	resp, err := app.TMDBClient.HttpClient.Get(url)
 	if err != nil {
@@ -96,7 +96,7 @@ func ShowMovie(app *appCfg.App, context telebot.Context, movieData *Movie, isMov
 		return context.Send(messages.InternalError)
 	}
 
-	log.Printf("Movie details sent successfully for movie ID: %d", movieData.ID)
+	log.Printf("Movie details sent successfully for movie Id: %d", movieData.ID)
 	return nil
 }
 
