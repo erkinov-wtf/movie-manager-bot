@@ -31,7 +31,7 @@ func SetupDefaultRoutes(bot *telebot.Bot, container *api.Container) {
 			return container.DefaultHandler.HandleTextInput(context)
 
 		case userCache.SearchState.IsSearchWaiting:
-			return container.DefaultHandler.HandleReplySearch(context, userCache)
+			return container.DefaultHandler.HandleReplySearch(context)
 
 		default:
 			log.Printf("Unknown command from user %d: %s", userId, context.Message().Text)

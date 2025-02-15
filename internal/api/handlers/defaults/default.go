@@ -6,7 +6,6 @@ import (
 	"github.com/erkinov-wtf/movie-manager-bot/internal/api/handlers/movie"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/api/handlers/tv"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/models"
-	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/cache"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/keyboards"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/messages"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/utils"
@@ -83,9 +82,10 @@ func (h *DefaultHandler) GetToken(context telebot.Context) error {
 	return context.Send(messages.TokenInstructions, telebot.ModeMarkdown)
 }
 
-func (h *DefaultHandler) HandleReplySearch(context telebot.Context, userCache *cache.UserCacheItem) error {
+func (h *DefaultHandler) HandleReplySearch(context telebot.Context) error {
 	h.Cache.UserCache.SetSearchStartFalse(context.Sender().ID)
-	if userCache.SearchState.IsTVShowSearch {
+	_, uc := h.Cache.UserCache.Get(context.Sender().ID)
+	if uc.SearchState.IsTVShowSearch {
 		return h.handleTVShowSearch(context)
 	}
 	return h.handleMovieSearch(context)

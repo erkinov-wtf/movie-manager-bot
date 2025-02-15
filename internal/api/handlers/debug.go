@@ -3,7 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/cache"
+	"github.com/erkinov-wtf/movie-manager-bot/internal/config/app"
 	"gopkg.in/telebot.v3"
 	"io"
 	"log"
@@ -52,7 +52,7 @@ func getLatestBotVersion() string {
 }
 
 // DebugMessage function
-func DebugMessage(context telebot.Context) error {
+func DebugMessage(context telebot.Context, app *app.App) error {
 	user := context.Sender()
 	message := context.Message()
 
@@ -84,7 +84,7 @@ func DebugMessage(context telebot.Context) error {
 	)
 
 	// Retrieve cache data
-	isActive, userCache := cache.UserCache.Get(context.Sender().ID)
+	isActive, userCache := app.Cache.UserCache.Get(context.Sender().ID)
 	if isActive {
 		debugMessage += fmt.Sprintf(
 			"*📦 Cache Info:*\n"+

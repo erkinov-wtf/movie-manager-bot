@@ -60,6 +60,7 @@ func (c *UserCacheData) Set(userId int64, value bool, expiration time.Duration, 
 	}
 }
 
+// Get method retrieves user data from cache
 func (c *UserCacheData) Get(userId int64) (isActive bool, data *UserCacheItem) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -72,6 +73,7 @@ func (c *UserCacheData) Get(userId int64) (isActive bool, data *UserCacheItem) {
 	return true, &userCache
 }
 
+// Fetch method retrieves user data or creates new one and returns it
 func (c *UserCacheData) Fetch(userId int64) (isActive bool, data *UserCacheItem) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
