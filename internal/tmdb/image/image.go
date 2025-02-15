@@ -4,9 +4,8 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"fmt"
-	"github.com/erkinov-wtf/movie-manager-bot/internal/config"
+	appCfg "github.com/erkinov-wtf/movie-manager-bot/internal/config/app"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/cache"
-	"github.com/erkinov-wtf/movie-manager-bot/internal/tmdb"
 	"image"
 	_ "image/jpeg"
 	_ "image/png"
@@ -20,20 +19,20 @@ import (
 )
 
 // GetImage now uses caching mechanism with improved error handling and image compression
-func GetImage(imageId string) (*bytes.Buffer, error) {
-	url := fmt.Sprintf("%s%s", config.Cfg.Endpoints.ImageUrl, imageId)
+func GetImage(app *appCfg.App, imageId string) (*bytes.Buffer, error) {
+	url := fmt.Sprintf("%s%s", app.Cfg.Endpoints.ImageUrl, imageId)
 	cacheKey := fmt.Sprintf("%x", sha256.Sum256([]byte(url)))
 
-	cache.ImageCache.Mu.RLock()
-	if cachedImg, exists := cache.ImageCache.Cache[cacheKey]; exists {
-		cache.ImageCache.Mu.RUnlock()
+	app.Cache.ImageCache.Mu.Lock()
+	if cachedImg, exists := app.Cache.ImageCache.Cache[cacheKey]; exists {
+		app.Cache.ImageCache.Mu.RUnlock()
 		log.Printf("Image retrieved from cache: %s", imageId)
 		return cachedImg.Data, nil
 	}
-	cache.ImageCache.Mu.RUnlock()
+	app.Cache.ImageCache.Mu.RUnlock()
 
 	// Creating a client with a longer timeout for image downloads
-	imageClient := tmdb.Client.NewClientWithCustomTimeout(15 * time.Second)
+	imageClient := app.TMDBClient.NewClientWithCustomTimeout(10 * time.Second)
 
 	log.Printf("Making image retrieval request: %s", url)
 	resp, err := imageClient.Get(url)
@@ -62,22 +61,22 @@ func GetImage(imageId string) (*bytes.Buffer, error) {
 		return nil, fmt.Errorf("error encoding compressed image: %w", err)
 	}
 
-	cache.ImageCache.Mu.Lock()
-	defer cache.ImageCache.Mu.Unlock()
+	app.Cache.ImageCache.Mu.Lock()
+	defer app.Cache.ImageCache.Mu.Unlock()
 
-	if len(cache.ImageCache.Cache) >= cache.ImageCache.MaxSize {
+	if len(app.Cache.ImageCache.Cache) >= app.Cache.ImageCache.MaxSize {
 		var oldestKey string
 		var oldestTime time.Time
-		for k, v := range cache.ImageCache.Cache {
+		for k, v := range app.Cache.ImageCache.Cache {
 			if oldestTime.IsZero() || v.Timestamp.Before(oldestTime) {
 				oldestKey = k
 				oldestTime = v.Timestamp
 			}
 		}
-		delete(cache.ImageCache.Cache, oldestKey)
+		delete(app.Cache.ImageCache.Cache, oldestKey)
 	}
 
-	cache.ImageCache.Cache[cacheKey] = &cache.CachedImage{
+	app.Cache.ImageCache.Cache[cacheKey] = &cache.CachedImage{
 		Data:      &imageBuffer,
 		Timestamp: time.Now(),
 	}

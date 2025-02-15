@@ -61,6 +61,9 @@ func (h *TVHandler) SearchTV(context telebot.Context) error {
 	}
 
 	// Initialize user-specific cache and data
+	if oldCache, exists := tvCache[userId]; exists {
+		oldCache.Clear()
+	}
 	tvCache[userId] = cache.NewCache()
 	pagePointer[userId] = new(int)
 	*pagePointer[userId] = 1

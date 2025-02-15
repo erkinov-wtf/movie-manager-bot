@@ -2,7 +2,7 @@ package paginators
 
 import (
 	"fmt"
-	movieType "github.com/erkinov-wtf/movie-manager-bot/internal/api/media/movie"
+	movieType "github.com/erkinov-wtf/movie-manager-bot/internal/tmdb/movie"
 	"gopkg.in/telebot.v3"
 )
 

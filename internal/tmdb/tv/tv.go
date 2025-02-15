@@ -4,10 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/erkinov-wtf/movie-manager-bot/internal/config"
+	appCfg "github.com/erkinov-wtf/movie-manager-bot/internal/config/app"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/models"
-	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/database"
-	"github.com/erkinov-wtf/movie-manager-bot/internal/tmdb"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/tmdb/image"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/messages"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/utils"
@@ -18,10 +16,10 @@ import (
 	"net/http"
 )
 
-func GetTV(tvId int, userId int64) (*TV, error) {
-	url := utils.MakeUrl(fmt.Sprintf("%s/%v", config.Cfg.Endpoints.GetTv, tvId), nil, userId)
+func GetTV(app *appCfg.App, tvId int, userId int64) (*TV, error) {
+	url := utils.MakeUrl(fmt.Sprintf("%s/%v", app.Cfg.Endpoints.GetTv, tvId), nil, userId)
 
-	resp, err := tmdb.Client.HttpClient.Get(url)
+	resp, err := app.TMDBClient.HttpClient.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching tv data: %w", err)
 	}
@@ -41,10 +39,10 @@ func GetTV(tvId int, userId int64) (*TV, error) {
 	return &result, nil
 }
 
-func GetSeason(tvId, seasonNumber int, userId int64) (*Season, error) {
-	url := utils.MakeUrl(fmt.Sprintf("%s/%v/season/%v", config.Cfg.Endpoints.GetTv, tvId, seasonNumber), nil, userId)
+func GetSeason(app *appCfg.App, tvId, seasonNumber int, userId int64) (*Season, error) {
+	url := utils.MakeUrl(fmt.Sprintf("%s/%v/season/%v", app.Cfg.Endpoints.GetTv, tvId, seasonNumber), nil, userId)
 
-	resp, err := tmdb.Client.HttpClient.Get(url)
+	resp, err := app.TMDBClient.HttpClient.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching tv data: %w", err)
 	}
@@ -64,9 +62,9 @@ func GetSeason(tvId, seasonNumber int, userId int64) (*Season, error) {
 	return &result, nil
 }
 
-func ShowTV(context telebot.Context, tvData *TV, isTVShow bool) error {
+func ShowTV(app *appCfg.App, context telebot.Context, tvData *TV, isTVShow bool) error {
 	// Retrieve TV poster image
-	imgBuffer, err := image.GetImage(tvData.PosterPath)
+	imgBuffer, err := image.GetImage(app, tvData.PosterPath)
 	if err != nil {
 		log.Printf("Error retrieving image: %v", err)
 		return context.Send(messages.InternalError)
@@ -92,7 +90,7 @@ func ShowTV(context telebot.Context, tvData *TV, isTVShow bool) error {
 
 	// Check if the movie is already in the user's watchlist
 	var watchlist []models.Watchlist
-	if err = database.DB.Where("show_api_id = ? AND user_id = ?", tvData.ID, context.Sender().ID).Find(&watchlist).Error; err != nil {
+	if err = app.Database.Where("show_api_id = ? AND user_id = ?", tvData.ID, context.Sender().ID).Find(&watchlist).Error; err != nil {
 		log.Printf("Database error: %v", err)
 		return context.Send(messages.WatchlistCheckError)
 	}
@@ -122,7 +120,7 @@ func ShowTV(context telebot.Context, tvData *TV, isTVShow bool) error {
 }
 
 // generateReplyMarkup generates inline keyboard buttons for the TV show.
-func generateReplyMarkup(TVID int64, isWatchlisted bool, isTVShow bool) *telebot.ReplyMarkup {
+func generateReplyMarkup(TvId int64, isWatchlisted bool, isTVShow bool) *telebot.ReplyMarkup {
 	btn := &telebot.ReplyMarkup{}
 
 	var backButton telebot.Btn
@@ -133,13 +131,13 @@ func generateReplyMarkup(TVID int64, isWatchlisted bool, isTVShow bool) *telebot
 		backButton = btn.Data("🔙 Back to list", fmt.Sprintf("watchlist|back_to_pagination|%s", models.TVShowType))
 	}
 	watchlistButton := btn.Data(
-		"🌟 Watchlist", fmt.Sprintf("tv|watchlist|%v", TVID),
+		"🌟 Watchlist", fmt.Sprintf("tv|watchlist|%v", TvId),
 	)
 	watchlistedButton := btn.Data(
-		"📌 Watchlisted", fmt.Sprintf("", TVID),
+		"📌 Watchlisted", fmt.Sprintf("", TvId),
 	)
 	watchedButton := btn.Data(
-		"👀 Watched", fmt.Sprintf("tv|select_seasons|%v", TVID),
+		"👀 Watched", fmt.Sprintf("tv|select_seasons|%v", TvId),
 	)
 
 	if isWatchlisted {

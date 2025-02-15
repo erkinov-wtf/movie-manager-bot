@@ -4,19 +4,23 @@ import (
 	"github.com/erkinov-wtf/movie-manager-bot/internal/api/handlers/info"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/api/handlers/watchlist"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/api/middleware"
-	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/cache"
-	messages2 "github.com/erkinov-wtf/movie-manager-bot/pkg/messages"
+	appCfg "github.com/erkinov-wtf/movie-manager-bot/internal/config/app"
+	"github.com/erkinov-wtf/movie-manager-bot/pkg/messages"
 	"gopkg.in/telebot.v3"
 )
 
-func handleSearchTV(c telebot.Context) error {
-	cache.UserCache.SetSearchStartTrue(c.Sender().ID, false)
-	return c.Send(messages2.MenuSearchTVResponse)
+func handleSearchTVWrapper(app *appCfg.App) telebot.HandlerFunc {
+	return func(c telebot.Context) error {
+		app.Cache.UserCache.SetSearchStartTrue(c.Sender().ID, false)
+		return c.Send(messages.MenuSearchTVResponse)
+	}
 }
 
-func handleSearchMovie(c telebot.Context) error {
-	cache.UserCache.SetSearchStartTrue(c.Sender().ID, true)
-	return c.Send(messages2.MenuSearchMovieResponse)
+func handleSearchMovieWrapper(app *appCfg.App) telebot.HandlerFunc {
+	return func(c telebot.Context) error {
+		app.Cache.UserCache.SetSearchStartTrue(c.Sender().ID, true)
+		return c.Send(messages.MenuSearchMovieResponse)
+	}
 }
 
 func handleWatchlist(c telebot.Context) error {
@@ -29,13 +33,13 @@ func handleInfo(c telebot.Context) error {
 	return i.Info(c)
 }
 
-func LoadMenuKeyboards(bot *telebot.Bot) *telebot.ReplyMarkup {
+func LoadMenuKeyboards(bot *telebot.Bot, app *appCfg.App) *telebot.ReplyMarkup {
 	menu := &telebot.ReplyMarkup{ResizeKeyboard: true}
 
-	btnSearchTV := menu.Text(messages2.SearchTVLabel)
-	btnSearchMovie := menu.Text(messages2.SearchMovieLabel)
-	btnWatchlist := menu.Text(messages2.WatchlistLabel)
-	btnInfo := menu.Text(messages2.InfoLabel)
+	btnSearchTV := menu.Text(messages.SearchTVLabel)
+	btnSearchMovie := menu.Text(messages.SearchMovieLabel)
+	btnWatchlist := menu.Text(messages.WatchlistLabel)
+	btnInfo := menu.Text(messages.InfoLabel)
 
 	menu.Reply(
 		menu.Row(btnSearchTV, btnSearchMovie),
@@ -43,10 +47,10 @@ func LoadMenuKeyboards(bot *telebot.Bot) *telebot.ReplyMarkup {
 		menu.Row(btnInfo),
 	)
 
-	bot.Handle(&btnSearchTV, middleware.RequireRegistration(handleSearchTV))
-	bot.Handle(&btnSearchMovie, middleware.RequireRegistration(handleSearchMovie))
-	bot.Handle(&btnWatchlist, middleware.RequireRegistration(handleWatchlist))
-	bot.Handle(&btnInfo, middleware.RequireRegistration(handleInfo))
+	bot.Handle(&btnSearchTV, middleware.RequireRegistration(handleSearchTVWrapper(app), app))
+	bot.Handle(&btnSearchMovie, middleware.RequireRegistration(handleSearchMovieWrapper(app), app))
+	bot.Handle(&btnWatchlist, middleware.RequireRegistration(handleWatchlist, app))
+	bot.Handle(&btnInfo, middleware.RequireRegistration(handleInfo, app))
 
 	return menu
 }

@@ -4,10 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/erkinov-wtf/movie-manager-bot/internal/config"
+	appCfg "github.com/erkinov-wtf/movie-manager-bot/internal/config/app"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/models"
-	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/database"
-	"github.com/erkinov-wtf/movie-manager-bot/internal/tmdb"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/tmdb/image"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/messages"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/utils"
@@ -19,10 +17,10 @@ import (
 )
 
 // GetMovie fetches movie details by ID from the API.
-func GetMovie(movieId int, userId int64) (*Movie, error) {
-	url := utils.MakeUrl(fmt.Sprintf("%s/%v", config.Cfg.Endpoints.GetMovie, movieId), nil, userId)
+func GetMovie(app *appCfg.App, movieId int, userId int64) (*Movie, error) {
+	url := utils.MakeUrl(fmt.Sprintf("%s/%v", app.Cfg.Endpoints.GetMovie, movieId), nil, userId)
 
-	resp, err := tmdb.Client.HttpClient.Get(url)
+	resp, err := app.TMDBClient.HttpClient.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching movie data: %w", err)
 	}
@@ -43,9 +41,9 @@ func GetMovie(movieId int, userId int64) (*Movie, error) {
 }
 
 // ShowMovie displays movie details along with an image and interactive buttons.
-func ShowMovie(context telebot.Context, movieData *Movie, isMovie bool) error {
+func ShowMovie(app *appCfg.App, context telebot.Context, movieData *Movie, isMovie bool) error {
 	// Retrieve movie poster image
-	imgBuffer, err := image.GetImage(movieData.PosterPath)
+	imgBuffer, err := image.GetImage(app, movieData.PosterPath)
 	if err != nil {
 		log.Printf("Error retrieving image: %v", err)
 		return context.Send(messages.InternalError)
@@ -73,7 +71,7 @@ func ShowMovie(context telebot.Context, movieData *Movie, isMovie bool) error {
 
 	// Check if the movie is already in the user's watchlist
 	var watchlist []models.Watchlist
-	if err = database.DB.Where("show_api_id = ? AND user_id = ?", movieData.ID, context.Sender().ID).Find(&watchlist).Error; err != nil {
+	if err = app.Database.Where("show_api_id = ? AND user_id = ?", movieData.ID, context.Sender().ID).Find(&watchlist).Error; err != nil {
 		log.Printf("Database error: %v", err)
 		return context.Send(messages.WatchlistCheckError)
 	}

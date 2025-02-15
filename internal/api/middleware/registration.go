@@ -1,9 +1,8 @@
 package middleware
 
 import (
+	"github.com/erkinov-wtf/movie-manager-bot/internal/config/app"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/models"
-	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/cache"
-	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/database"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/messages"
 	"gopkg.in/telebot.v3"
 	"log"
@@ -11,18 +10,18 @@ import (
 	"time"
 )
 
-func IsRegisteredUser(c telebot.Context) bool {
+func IsRegisteredUser(c telebot.Context, app *app.App) bool {
 	userId := c.Sender().ID
-	if isActive, userCache := cache.UserCache.Get(userId); isActive && userCache.Value {
+	if isActive, userCache := app.Cache.UserCache.Get(userId); isActive && userCache.Value {
 		return true
 	}
 	log.Printf("User ID %d not found in cache, checking database", userId)
 
 	var user models.User
-	err := database.DB.First(&user, "id = ?", userId).Error
+	err := app.Database.First(&user, "id = ?", userId).Error
 	if err == nil {
 		isTokenWaiting := user.TmdbApiKey == nil
-		cache.UserCache.Set(userId, true, 24*time.Hour, isTokenWaiting)
+		app.Cache.UserCache.Set(userId, true, 24*time.Hour, isTokenWaiting)
 		log.Printf("User ID %d found in database and added to cache", userId)
 		return true
 	}
@@ -31,9 +30,9 @@ func IsRegisteredUser(c telebot.Context) bool {
 	return false
 }
 
-func RequireRegistration(next telebot.HandlerFunc) telebot.HandlerFunc {
+func RequireRegistration(next telebot.HandlerFunc, app *app.App) telebot.HandlerFunc {
 	return func(c telebot.Context) error {
-		if !IsRegisteredUser(c) {
+		if !IsRegisteredUser(c, app) {
 			return c.Send(messages.RegistrationRequired)
 		}
 		return next(c)

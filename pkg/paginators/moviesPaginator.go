@@ -1,11 +1,11 @@
 package paginators
 
 import (
-	movieType "github.com/erkinov-wtf/movie-manager-bot/internal/api/media/movie"
-	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/cache/entities"
+	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/cache"
+	movieType "github.com/erkinov-wtf/movie-manager-bot/internal/tmdb/movie"
 )
 
-func PaginateMovies(moviesCache *entities.Cache, page, movieCount int) []movieType.Movie {
+func PaginateMovies(moviesCache *cache.Cache, page, movieCount int) []movieType.Movie {
 	const itemsPerPage = 3
 
 	start := (page - 1) * itemsPerPage
