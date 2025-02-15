@@ -3,7 +3,6 @@ package info
 import (
 	"fmt"
 	models2 "github.com/erkinov-wtf/movie-manager-bot/internal/models"
-	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/database"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/messages"
 	"gopkg.in/telebot.v3"
 	"log"
@@ -12,7 +11,7 @@ import (
 	"strings"
 )
 
-func (*InfoHandler) Info(context telebot.Context) error {
+func (h *InfoHandler) Info(context telebot.Context) error {
 	log.Print(messages.InfoCommand)
 
 	msg, err := context.Bot().Send(context.Chat(), messages.Loading)
@@ -39,10 +38,10 @@ func (*InfoHandler) Info(context telebot.Context) error {
 	return nil
 }
 
-func (i *InfoHandler) handleTVDetails(context telebot.Context, msgId string) error {
+func (h *InfoHandler) handleTVDetails(context telebot.Context, msgId string) error {
 	var watchedShows []models2.TVShows
 
-	if err := database.DB.Where("user_id = ?", context.Sender().ID).Find(&watchedShows).Error; err != nil {
+	if err := h.Database.Where("user_id = ?", context.Sender().ID).Find(&watchedShows).Error; err != nil {
 		log.Printf("cant get all tv shows: %v", err.Error())
 		return context.Send(messages.InternalError)
 	}
@@ -81,10 +80,10 @@ func (i *InfoHandler) handleTVDetails(context telebot.Context, msgId string) err
 	return nil
 }
 
-func (i *InfoHandler) handleMovieDetails(context telebot.Context, msgId string) error {
+func (h *InfoHandler) handleMovieDetails(context telebot.Context, msgId string) error {
 	var watchedMovies []models2.Movie
 
-	if err := database.DB.Where("user_id = ?", context.Sender().ID).Find(&watchedMovies).Error; err != nil {
+	if err := h.Database.Where("user_id = ?", context.Sender().ID).Find(&watchedMovies).Error; err != nil {
 		log.Printf("cant get all tv movies: %v", err.Error())
 		return context.Send(messages.InternalError)
 	}
@@ -123,16 +122,16 @@ func (i *InfoHandler) handleMovieDetails(context telebot.Context, msgId string) 
 	return nil
 }
 
-func (i *InfoHandler) handleFullDetails(context telebot.Context, data string) error {
+func (h *InfoHandler) handleFullDetails(context telebot.Context, data string) error {
 	var watchedMovies []models2.Movie
 	var watchedShows []models2.TVShows
 
-	if err := database.DB.Where("user_id = ?", context.Sender().ID).Find(&watchedMovies).Error; err != nil {
+	if err := h.Database.Where("user_id = ?", context.Sender().ID).Find(&watchedMovies).Error; err != nil {
 		log.Printf("cant get all movies: %v", err.Error())
 		return context.Send(messages.InternalError)
 	}
 
-	if err := database.DB.Where("user_id = ?", context.Sender().ID).Find(&watchedShows).Error; err != nil {
+	if err := h.Database.Where("user_id = ?", context.Sender().ID).Find(&watchedShows).Error; err != nil {
 		log.Printf("cant get all tv shows: %v", err.Error())
 		return context.Send(messages.InternalError)
 	}
@@ -201,7 +200,7 @@ func (i *InfoHandler) handleFullDetails(context telebot.Context, data string) er
 	return nil
 }
 
-func (i *InfoHandler) InfoCallback(context telebot.Context) error {
+func (h *InfoHandler) InfoCallback(context telebot.Context) error {
 	callback := context.Callback()
 	trimmed := strings.TrimSpace(callback.Data)
 
@@ -220,13 +219,13 @@ func (i *InfoHandler) InfoCallback(context telebot.Context) error {
 
 	switch action {
 	case "movie_info":
-		return i.handleMovieDetails(context, data)
+		return h.handleMovieDetails(context, data)
 
 	case "tv_info":
-		return i.handleTVDetails(context, data)
+		return h.handleTVDetails(context, data)
 
 	case "full_info":
-		return i.handleFullDetails(context, data)
+		return h.handleFullDetails(context, data)
 
 	default:
 		return context.Respond(&telebot.CallbackResponse{Text: messages.UnknownAction})
