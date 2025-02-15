@@ -3,28 +3,43 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/erkinov-wtf/movie-manager-bot/api"
-	"github.com/erkinov-wtf/movie-manager-bot/commands"
-	"github.com/erkinov-wtf/movie-manager-bot/config"
-	"github.com/erkinov-wtf/movie-manager-bot/dependencyInjection"
-	"github.com/erkinov-wtf/movie-manager-bot/helpers/workers"
-	"github.com/erkinov-wtf/movie-manager-bot/storage/cache"
-	"github.com/erkinov-wtf/movie-manager-bot/storage/database"
+	"github.com/erkinov-wtf/movie-manager-bot/internal/api/dependencyInjection"
+	"github.com/erkinov-wtf/movie-manager-bot/internal/config"
+	"github.com/erkinov-wtf/movie-manager-bot/internal/routes"
+	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/cache"
+	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/database"
+	"github.com/erkinov-wtf/movie-manager-bot/internal/tmdb"
+	"github.com/erkinov-wtf/movie-manager-bot/pkg/workers"
 	"gopkg.in/telebot.v3"
+	"gorm.io/gorm"
 	"log"
 	"time"
 )
 
+type App struct {
+	Cfg        *config.Config
+	Database   *gorm.DB
+	TMDBClient *tmdb.Client
+	Cache      *cache.Manager
+}
+
 func main() {
 	log.Print("starting bot...")
-	config.MustLoad()
-	api.NewClient()
+	cfg := config.MustLoad()
+	tmdbClient := tmdb.NewClient(cfg)
 	log.Print("api client initialized")
-	database.DBConnect()
-	cache.NewUserCache()
+	db := database.MustLoadDb(cfg)
+	cacheManager := cache.NewCacheManager()
+
+	app := App{
+		Cfg:        cfg,
+		Database:   db,
+		TMDBClient: tmdbClient,
+		Cache:      cacheManager,
+	}
 
 	settings := telebot.Settings{
-		Token:  config.Cfg.General.BotToken,
+		Token:  cfg.General.BotToken,
 		Poller: &telebot.LongPoller{Timeout: 10 * time.Second},
 	}
 
@@ -36,11 +51,11 @@ func main() {
 
 	container := dependencyInjection.NewContainer()
 
-	commands.SetupDefaultRoutes(bot, container)
-	commands.SetupMovieRoutes(bot, container)
-	commands.SetupTVRoutes(bot, container)
-	commands.SetupInfoRoutes(bot, container)
-	commands.SetupWatchlistRoutes(bot, container)
+	routes.SetupDefaultRoutes(bot, container)
+	routes.SetupMovieRoutes(bot, container)
+	routes.SetupTVRoutes(bot, container)
+	routes.SetupInfoRoutes(bot, container)
+	routes.SetupWatchlistRoutes(bot, container)
 	log.Print("bot handlers setup")
 
 	// Create a cancellable context
