@@ -2,7 +2,7 @@ package routes
 
 import (
 	"fmt"
-	"github.com/erkinov-wtf/movie-manager-bot/internal/api/dependencyInjection"
+	"github.com/erkinov-wtf/movie-manager-bot/internal/api"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/api/handlers"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/api/middleware"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/cache"
@@ -13,7 +13,7 @@ import (
 	"strings"
 )
 
-func SetupDefaultRoutes(bot *telebot.Bot, container *dependencyInjection.Container) {
+func SetupDefaultRoutes(bot *telebot.Bot, container *api.Container) {
 	keyboards.LoadAllKeyboards(bot, container.DefaultHandler)
 
 	bot.Handle(telebot.OnText, func(context telebot.Context) error {
@@ -48,23 +48,23 @@ func SetupDefaultRoutes(bot *telebot.Bot, container *dependencyInjection.Contain
 
 }
 
-func SetupMovieRoutes(bot *telebot.Bot, container *dependencyInjection.Container) {
+func SetupMovieRoutes(bot *telebot.Bot, container *api.Container) {
 	bot.Handle("/sm", middleware.RequireRegistration(container.MovieHandler.SearchMovie))
 }
 
-func SetupTVRoutes(bot *telebot.Bot, container *dependencyInjection.Container) {
+func SetupTVRoutes(bot *telebot.Bot, container *api.Container) {
 	bot.Handle("/stv", middleware.RequireRegistration(container.TVHandler.SearchTV))
 }
 
-func SetupInfoRoutes(bot *telebot.Bot, container *dependencyInjection.Container) {
+func SetupInfoRoutes(bot *telebot.Bot, container *api.Container) {
 	bot.Handle("/info", middleware.RequireRegistration(container.InfoHandler.Info))
 }
 
-func SetupWatchlistRoutes(bot *telebot.Bot, container *dependencyInjection.Container) {
+func SetupWatchlistRoutes(bot *telebot.Bot, container *api.Container) {
 	bot.Handle("/w", middleware.RequireRegistration(container.WatchlistHandler.WatchlistInfo))
 }
 
-func handleCallback(container *dependencyInjection.Container) func(c telebot.Context) error {
+func handleCallback(container *api.Container) func(c telebot.Context) error {
 	return func(c telebot.Context) error {
 		trimmed := strings.TrimSpace(c.Callback().Data)
 		log.Print(trimmed)

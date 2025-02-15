@@ -3,25 +3,18 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/erkinov-wtf/movie-manager-bot/internal/api/dependencyInjection"
+	"github.com/erkinov-wtf/movie-manager-bot/internal/api"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/config"
+	"github.com/erkinov-wtf/movie-manager-bot/internal/config/app"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/routes"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/cache"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/database"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/tmdb"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/workers"
 	"gopkg.in/telebot.v3"
-	"gorm.io/gorm"
 	"log"
 	"time"
 )
-
-type App struct {
-	Cfg        *config.Config
-	Database   *gorm.DB
-	TMDBClient *tmdb.Client
-	Cache      *cache.Manager
-}
 
 func main() {
 	log.Print("starting bot...")
@@ -31,12 +24,7 @@ func main() {
 	db := database.MustLoadDb(cfg)
 	cacheManager := cache.NewCacheManager()
 
-	app := App{
-		Cfg:        cfg,
-		Database:   db,
-		TMDBClient: tmdbClient,
-		Cache:      cacheManager,
-	}
+	appCfg := app.NewApp(cfg, db, tmdbClient, cacheManager)
 
 	settings := telebot.Settings{
 		Token:  cfg.General.BotToken,
@@ -49,7 +37,7 @@ func main() {
 		return
 	}
 
-	container := dependencyInjection.NewContainer()
+	container := api.NewResolver(appCfg)
 
 	routes.SetupDefaultRoutes(bot, container)
 	routes.SetupMovieRoutes(bot, container)

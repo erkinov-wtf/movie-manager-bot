@@ -1,8 +1,8 @@
 package utils
 
 import (
-	"github.com/erkinov-wtf/movie-manager-bot/internal/api"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/cache"
+	"github.com/erkinov-wtf/movie-manager-bot/internal/tmdb"
 	"log"
 	"net/url"
 )

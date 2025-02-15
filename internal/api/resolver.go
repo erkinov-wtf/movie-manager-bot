@@ -1,4 +1,4 @@
-package dependencyInjection
+package api
 
 import (
 	"github.com/erkinov-wtf/movie-manager-bot/internal/api/handlers/defaults"
@@ -7,9 +7,10 @@ import (
 	"github.com/erkinov-wtf/movie-manager-bot/internal/api/handlers/tv"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/api/handlers/watchlist"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/api/interfaces"
+	"github.com/erkinov-wtf/movie-manager-bot/internal/config/app"
 )
 
-type Container struct {
+type Resolver struct {
 	DefaultHandler   interfaces.DefaultInterface
 	MovieHandler     interfaces.MovieInterface
 	TVHandler        interfaces.TVInterface
@@ -17,12 +18,12 @@ type Container struct {
 	WatchlistHandler interfaces.WatchlistInterface
 }
 
-func NewContainer() *Container {
-	return &Container{
-		DefaultHandler:   defaults.NewDefaultHandler(),
-		MovieHandler:     movie.NewMovieHandler(),
-		TVHandler:        tv.NewTVHandler(),
-		InfoHandler:      info.NewInfoHandler(),
-		WatchlistHandler: watchlist.NewWatchlistHandler(),
+func NewResolver(app *app.App) *Resolver {
+	return &Resolver{
+		DefaultHandler:   defaults.NewDefaultHandler(app),
+		MovieHandler:     movie.NewMovieHandler(app),
+		TVHandler:        tv.NewTVHandler(app),
+		InfoHandler:      info.NewInfoHandler(app),
+		WatchlistHandler: watchlist.NewWatchlistHandler(app),
 	}
 }

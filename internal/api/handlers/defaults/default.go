@@ -18,7 +18,7 @@ import (
 	"strings"
 )
 
-func (*defaultHandler) Start(context telebot.Context) error {
+func (*DefaultHandler) Start(context telebot.Context) error {
 	log.Print(messages.StartCommand)
 
 	var existingUser models.User
@@ -54,7 +54,7 @@ func (*defaultHandler) Start(context telebot.Context) error {
 	return nil
 }
 
-func (h *defaultHandler) handleStartCallback(context telebot.Context) error {
+func (h *DefaultHandler) handleStartCallback(context telebot.Context) error {
 	newUser := models.User{
 		ID:         context.Sender().ID,
 		FirstName:  &context.Sender().FirstName,
@@ -73,7 +73,7 @@ func (h *defaultHandler) handleStartCallback(context telebot.Context) error {
 	return context.Send(messages.Registered, keyboard, telebot.ModeMarkdown)
 }
 
-func (h *defaultHandler) GetToken(context telebot.Context) error {
+func (h *DefaultHandler) GetToken(context telebot.Context) error {
 	userId := context.Sender().ID
 	isActive, userCache := cache.UserCache.Get(userId)
 
@@ -84,26 +84,26 @@ func (h *defaultHandler) GetToken(context telebot.Context) error {
 	return context.Send(messages.TokenInstructions, telebot.ModeMarkdown)
 }
 
-func (h *defaultHandler) HandleReplySearch(context telebot.Context, userCache *cache.UserCacheItem) error {
+func (h *DefaultHandler) HandleReplySearch(context telebot.Context, userCache *cache.UserCacheItem) error {
 	if userCache.SearchState.IsTVShowSearch {
 		return h.handleTVShowSearch(context)
 	}
 	return h.handleMovieSearch(context)
 }
 
-func (h *defaultHandler) handleTVShowSearch(context telebot.Context) error {
+func (h *DefaultHandler) handleTVShowSearch(context telebot.Context) error {
 	cache.UserCache.SetSearchStartFalse(context.Sender().ID)
 	tvHandler := &tv.TVHandler{}
 	return tvHandler.SearchTV(context)
 }
 
-func (h *defaultHandler) handleMovieSearch(context telebot.Context) error {
+func (h *DefaultHandler) handleMovieSearch(context telebot.Context) error {
 	cache.UserCache.SetSearchStartFalse(context.Sender().ID)
 	movieHandler := &movie.MovieHandler{}
 	return movieHandler.SearchMovie(context)
 }
 
-func (h *defaultHandler) HandleTextInput(context telebot.Context) error {
+func (h *DefaultHandler) HandleTextInput(context telebot.Context) error {
 	userId := context.Sender().ID
 	inputText := context.Message().Text
 
@@ -124,7 +124,7 @@ func (h *defaultHandler) HandleTextInput(context telebot.Context) error {
 	return context.Send(messages.TokenSaved, menu, telebot.ModeMarkdown)
 }
 
-func (h *defaultHandler) DefaultCallback(context telebot.Context) error {
+func (h *DefaultHandler) DefaultCallback(context telebot.Context) error {
 	callback := context.Callback()
 	trimmed := strings.TrimSpace(callback.Data)
 
