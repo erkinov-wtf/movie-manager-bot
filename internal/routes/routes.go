@@ -6,15 +6,14 @@ import (
 	"github.com/erkinov-wtf/movie-manager-bot/internal/api/handlers"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/api/middleware"
 	appCfg "github.com/erkinov-wtf/movie-manager-bot/internal/config/app"
-	"github.com/erkinov-wtf/movie-manager-bot/pkg/keyboards"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/messages"
 	"gopkg.in/telebot.v3"
 	"log"
 	"strings"
 )
 
-func SetupDefaultRoutes(bot *telebot.Bot, container *api.Resolver, app *appCfg.App) {
-	keyboards.LoadAllKeyboards(bot, container.DefaultHandler, app)
+func SetupDefaultRoutes(bot *telebot.Bot, resolver *api.Resolver, app *appCfg.App) {
+	resolver.KeyboardFactory.LoadAllKeyboards(bot, resolver.DefaultHandler)
 
 	bot.Handle(telebot.OnText, func(context telebot.Context) error {
 		userId := context.Sender().ID
@@ -28,10 +27,10 @@ func SetupDefaultRoutes(bot *telebot.Bot, container *api.Resolver, app *appCfg.A
 		switch {
 		case userCache.ApiToken.IsTokenWaiting:
 			log.Printf("Handling API token input for user %d", userId)
-			return container.DefaultHandler.HandleTextInput(context)
+			return resolver.DefaultHandler.HandleTextInput(context)
 
 		case userCache.SearchState.IsSearchWaiting:
-			return container.DefaultHandler.HandleReplySearch(context)
+			return resolver.DefaultHandler.HandleReplySearch(context)
 
 		default:
 			log.Printf("Unknown command from user %d: %s", userId, context.Message().Text)
@@ -40,9 +39,9 @@ func SetupDefaultRoutes(bot *telebot.Bot, container *api.Resolver, app *appCfg.A
 		}
 	})
 
-	bot.Handle(telebot.OnCallback, handleCallback(container))
-	bot.Handle("/start", container.DefaultHandler.Start)
-	bot.Handle("/token", middleware.RequireRegistration(container.DefaultHandler.GetToken, app))
+	bot.Handle(telebot.OnCallback, handleCallback(resolver))
+	bot.Handle("/start", resolver.DefaultHandler.Start)
+	bot.Handle("/token", middleware.RequireRegistration(resolver.DefaultHandler.GetToken, app))
 
 	bot.Handle("/debug", func(context telebot.Context) error {
 		return handlers.DebugMessage(context, app)

@@ -8,6 +8,7 @@ import (
 	"github.com/erkinov-wtf/movie-manager-bot/internal/api/handlers/watchlist"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/api/interfaces"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/config/app"
+	"github.com/erkinov-wtf/movie-manager-bot/pkg/keyboards"
 )
 
 type Resolver struct {
@@ -16,6 +17,8 @@ type Resolver struct {
 	TVHandler        interfaces.TVInterface
 	InfoHandler      interfaces.InfoInterface
 	WatchlistHandler interfaces.WatchlistInterface
+
+	KeyboardFactory *keyboards.KeyboardFactory
 }
 
 func NewResolver(app *app.App) *Resolver {
@@ -23,12 +26,14 @@ func NewResolver(app *app.App) *Resolver {
 	tvHandler := tv.NewTVHandler(app)
 	infoHandler := info.NewInfoHandler(app)
 	watchlistHandler := watchlist.NewWatchlistHandler(app)
+	keys := keyboards.NewKeyboardFactory(app, watchlistHandler, infoHandler)
 
 	return &Resolver{
-		DefaultHandler:   defaults.NewDefaultHandler(app, movieHandler, tvHandler),
+		DefaultHandler:   defaults.NewDefaultHandler(app, movieHandler, tvHandler, keys),
 		MovieHandler:     movieHandler,
 		TVHandler:        tvHandler,
 		InfoHandler:      infoHandler,
 		WatchlistHandler: watchlistHandler,
+		KeyboardFactory:  keys,
 	}
 }

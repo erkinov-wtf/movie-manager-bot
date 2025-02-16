@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/models"
-	"github.com/erkinov-wtf/movie-manager-bot/pkg/keyboards"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/messages"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/utils"
 	"gopkg.in/telebot.v3"
@@ -39,7 +38,7 @@ func (h *DefaultHandler) Start(context telebot.Context) error {
 			return context.Send(messages.InternalError)
 		}
 	} else {
-		menu := keyboards.LoadMenuKeyboards(context.Bot(), h.app)
+		menu := h.keyboards.LoadMenu(context.Bot())
 		err = context.Send(messages.UseHelp, telebot.ModeMarkdown, menu)
 		if err != nil {
 			log.Print(err)
@@ -65,7 +64,7 @@ func (h *DefaultHandler) handleStartCallback(context telebot.Context) error {
 		return context.Send(messages.InternalError)
 	}
 
-	keyboard := keyboards.LoadTokenRegistrationKeyboard(context.Bot(), h, h.app)
+	keyboard := h.keyboards.LoadTokenRegistration(context.Bot(), h)
 	return context.Send(messages.Registered, keyboard, telebot.ModeMarkdown)
 }
 
@@ -115,7 +114,7 @@ func (h *DefaultHandler) HandleTextInput(context telebot.Context) error {
 	}
 
 	h.app.Cache.UserCache.UpdateTokenState(userId, false)
-	menu := keyboards.LoadMenuKeyboards(context.Bot(), h.app)
+	menu := h.keyboards.LoadMenu(context.Bot())
 
 	return context.Send(messages.TokenSaved, menu, telebot.ModeMarkdown)
 }

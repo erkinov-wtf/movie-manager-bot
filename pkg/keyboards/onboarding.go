@@ -7,7 +7,7 @@ import (
 	"gopkg.in/telebot.v3"
 )
 
-func LoadTokenRegistrationKeyboard(bot *telebot.Bot, handlers interfaces.DefaultInterface, app *appCfg.App) *telebot.ReplyMarkup {
+func (f *KeyboardFactory) loadTokenRegistrationKeyboard(bot *telebot.Bot, handlers interfaces.DefaultInterface, app *appCfg.App) *telebot.ReplyMarkup {
 	menu := &telebot.ReplyMarkup{ResizeKeyboard: true}
 
 	btnSearch := menu.Text("Get Token")

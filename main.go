@@ -37,13 +37,14 @@ func main() {
 		return
 	}
 
-	container := api.NewResolver(appCfg)
+	resolver := api.NewResolver(appCfg)
+	resolver.KeyboardFactory.LoadAllKeyboards(bot, resolver.DefaultHandler)
 
-	routes.SetupDefaultRoutes(bot, container, appCfg)
-	routes.SetupMovieRoutes(bot, container, appCfg)
-	routes.SetupTVRoutes(bot, container, appCfg)
-	routes.SetupInfoRoutes(bot, container, appCfg)
-	routes.SetupWatchlistRoutes(bot, container, appCfg)
+	routes.SetupDefaultRoutes(bot, resolver, appCfg)
+	routes.SetupMovieRoutes(bot, resolver, appCfg)
+	routes.SetupTVRoutes(bot, resolver, appCfg)
+	routes.SetupInfoRoutes(bot, resolver, appCfg)
+	routes.SetupWatchlistRoutes(bot, resolver, appCfg)
 	log.Print("bot handlers setup")
 
 	// Create a cancellable context
