@@ -19,11 +19,16 @@ type Resolver struct {
 }
 
 func NewResolver(app *app.App) *Resolver {
+	movieHandler := movie.NewMovieHandler(app)
+	tvHandler := tv.NewTVHandler(app)
+	infoHandler := info.NewInfoHandler(app)
+	watchlistHandler := watchlist.NewWatchlistHandler(app)
+
 	return &Resolver{
-		DefaultHandler:   defaults.NewDefaultHandler(app, movie.NewMovieHandler(app), tv.NewTVHandler(app)),
-		MovieHandler:     movie.NewMovieHandler(app),
-		TVHandler:        tv.NewTVHandler(app),
-		InfoHandler:      info.NewInfoHandler(app),
-		WatchlistHandler: watchlist.NewWatchlistHandler(app),
+		DefaultHandler:   defaults.NewDefaultHandler(app, movieHandler, tvHandler),
+		MovieHandler:     movieHandler,
+		TVHandler:        tvHandler,
+		InfoHandler:      infoHandler,
+		WatchlistHandler: watchlistHandler,
 	}
 }
