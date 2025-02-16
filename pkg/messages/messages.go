@@ -13,7 +13,7 @@ const (
 const (
 	PrivacyPolicy     = "By using this bot, you agree to our [Privacy Policy](https://example.com/privacy-policy)"
 	UseHelp           = "use /help for assistance"
-	Registered        = "You have been successfully registered.\nBut for using this bot you need to get TMDB Token.\nPlease click */token* to get you token"
+	Registered        = "You have been successfully registered.\nBut for using this bot you need to get TMDB Token.\nPlease click *Get Token* button below to get you token"
 	TokenInstructions = "To use this bot, you need a TMDB API Key. Please follow these steps:\n" +
 		"1. Visit the [TMDB Account Page](https://www.themoviedb.org/account/signup) and create an account if you don’t already have one.\n" +
 		"2. After signing in, go to the [API Settings](https://www.themoviedb.org/settings/api/new?type=developer).\n" +
