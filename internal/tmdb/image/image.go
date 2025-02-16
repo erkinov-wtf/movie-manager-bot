@@ -23,13 +23,14 @@ func GetImage(app *appCfg.App, imageId string) (*bytes.Buffer, error) {
 	url := fmt.Sprintf("%s%s", app.Cfg.Endpoints.ImageUrl, imageId)
 	cacheKey := fmt.Sprintf("%x", sha256.Sum256([]byte(url)))
 
-	app.Cache.ImageCache.Mu.Lock()
-	if cachedImg, exists := app.Cache.ImageCache.Cache[cacheKey]; exists {
-		app.Cache.ImageCache.Mu.RUnlock()
+	app.Cache.ImageCache.Mu.RLock()
+	cachedImg, exists := app.Cache.ImageCache.Cache[cacheKey]
+	app.Cache.ImageCache.Mu.RUnlock()
+
+	if exists {
 		log.Printf("Image retrieved from cache: %s", imageId)
 		return cachedImg.Data, nil
 	}
-	app.Cache.ImageCache.Mu.RUnlock()
 
 	// Creating a client with a longer timeout for image downloads
 	imageClient := app.TMDBClient.NewClientWithCustomTimeout(10 * time.Second)

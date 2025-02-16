@@ -81,7 +81,6 @@ func (h *DefaultHandler) GetToken(context telebot.Context) error {
 }
 
 func (h *DefaultHandler) HandleReplySearch(context telebot.Context) error {
-	h.app.Cache.UserCache.SetSearchStartFalse(context.Sender().ID)
 	_, uc := h.app.Cache.UserCache.Get(context.Sender().ID)
 
 	if uc.SearchState.IsTVShowSearch {
@@ -91,10 +90,12 @@ func (h *DefaultHandler) HandleReplySearch(context telebot.Context) error {
 }
 
 func (h *DefaultHandler) handleTVShowSearch(context telebot.Context) error {
+	h.app.Cache.UserCache.SetSearchStartFalse(context.Sender().ID)
 	return h.tvHandler.SearchTV(context)
 }
 
 func (h *DefaultHandler) handleMovieSearch(context telebot.Context) error {
+	h.app.Cache.UserCache.SetSearchStartFalse(context.Sender().ID)
 	return h.movieHandler.SearchMovie(context)
 }
 
