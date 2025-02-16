@@ -14,7 +14,7 @@ func MakeUrl(app *appCfg.App, endpoint string, queryParams map[string]string, us
 
 	base.Path += endpoint
 
-	_, userCache := app.Cache.UserCache.Get(userId)
+	_, userCache := app.Cache.UserCache.Fetch(userId)
 
 	params := url.Values{}
 	params.Add("api_key", userCache.ApiToken.Token)
