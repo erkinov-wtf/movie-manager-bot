@@ -3,7 +3,7 @@ package database
 import (
 	"fmt"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/config"
-	models2 "github.com/erkinov-wtf/movie-manager-bot/internal/models"
+	"github.com/erkinov-wtf/movie-manager-bot/internal/models"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"log"
@@ -21,14 +21,14 @@ func MustLoadDb(config *config.Config) *gorm.DB {
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 
 	if err != nil {
-		panic("Failed to connect to database")
+		panic(fmt.Sprintf("Failed to connect to database: %v", err))
 	}
 
 	log.Print("DB connected successfully")
 
-	err = db.AutoMigrate(&models2.Movie{}, &models2.TVShows{}, &models2.User{}, &models2.Watchlist{})
+	err = db.AutoMigrate(&models.Movie{}, &models.TVShows{}, &models.User{}, &models.Watchlist{})
 	if err != nil {
-		panic(err)
+		panic(fmt.Sprintf("Failed to migrate models: %v", err))
 	}
 
 	log.Print("Models migrated successfully")
