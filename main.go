@@ -3,13 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/erkinov-wtf/movie-manager-bot/api"
-	"github.com/erkinov-wtf/movie-manager-bot/commands"
-	"github.com/erkinov-wtf/movie-manager-bot/config"
-	"github.com/erkinov-wtf/movie-manager-bot/dependencyInjection"
-	"github.com/erkinov-wtf/movie-manager-bot/helpers/workers"
-	"github.com/erkinov-wtf/movie-manager-bot/storage/cache"
-	"github.com/erkinov-wtf/movie-manager-bot/storage/database"
+	"github.com/erkinov-wtf/movie-manager-bot/internal/api"
+	"github.com/erkinov-wtf/movie-manager-bot/internal/config"
+	"github.com/erkinov-wtf/movie-manager-bot/internal/config/app"
+	"github.com/erkinov-wtf/movie-manager-bot/internal/routes"
+	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/cache"
+	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/database"
+	"github.com/erkinov-wtf/movie-manager-bot/internal/tmdb"
+	"github.com/erkinov-wtf/movie-manager-bot/pkg/workers"
 	"gopkg.in/telebot.v3"
 	"log"
 	"time"
@@ -17,14 +18,16 @@ import (
 
 func main() {
 	log.Print("starting bot...")
-	config.MustLoad()
-	api.NewClient()
+	cfg := config.MustLoad()
+	tmdbClient := tmdb.NewClient(cfg)
 	log.Print("api client initialized")
-	database.DBConnect()
-	cache.NewUserCache()
+	db := database.MustLoadDb(cfg)
+	cacheManager := cache.NewCacheManager(db)
+
+	appCfg := app.NewApp(cfg, db, tmdbClient, cacheManager)
 
 	settings := telebot.Settings{
-		Token:  config.Cfg.General.BotToken,
+		Token:  cfg.General.BotToken,
 		Poller: &telebot.LongPoller{Timeout: 10 * time.Second},
 	}
 
@@ -34,13 +37,14 @@ func main() {
 		return
 	}
 
-	container := dependencyInjection.NewContainer()
+	resolver := api.NewResolver(appCfg)
+	resolver.KeyboardFactory.LoadAllKeyboards(bot, resolver.DefaultHandler)
 
-	commands.SetupDefaultRoutes(bot, container)
-	commands.SetupMovieRoutes(bot, container)
-	commands.SetupTVRoutes(bot, container)
-	commands.SetupInfoRoutes(bot, container)
-	commands.SetupWatchlistRoutes(bot, container)
+	routes.SetupDefaultRoutes(bot, resolver, appCfg)
+	routes.SetupMovieRoutes(bot, resolver, appCfg)
+	routes.SetupTVRoutes(bot, resolver, appCfg)
+	routes.SetupInfoRoutes(bot, resolver, appCfg)
+	routes.SetupWatchlistRoutes(bot, resolver, appCfg)
 	log.Print("bot handlers setup")
 
 	// Create a cancellable context
@@ -49,7 +53,7 @@ func main() {
 
 	// Start the checker in a separate goroutine
 	apiClient := workers.NewWorkerApiClient(50)
-	checker := workers.NewTVShowChecker(database.DB, bot, apiClient)
+	checker := workers.NewTVShowChecker(appCfg, bot, apiClient)
 	go checker.StartChecking(ctx, 336*time.Hour)
 
 	log.Print("bot started")
