@@ -50,19 +50,19 @@ func SetupDefaultRoutes(bot *telebot.Bot, resolver *api.Resolver, app *appCfg.Ap
 }
 
 func SetupMovieRoutes(bot *telebot.Bot, container *api.Resolver, app *appCfg.App) {
-	bot.Handle("/sm", middleware.RequireRegistration(container.MovieHandler.SearchMovie, app))
+	bot.Handle("/sm", middleware.RequireTMDBToken(container.MovieHandler.SearchMovie, app))
 }
 
 func SetupTVRoutes(bot *telebot.Bot, container *api.Resolver, app *appCfg.App) {
-	bot.Handle("/stv", middleware.RequireRegistration(container.TVHandler.SearchTV, app))
+	bot.Handle("/stv", middleware.RequireTMDBToken(container.TVHandler.SearchTV, app))
 }
 
 func SetupInfoRoutes(bot *telebot.Bot, container *api.Resolver, app *appCfg.App) {
-	bot.Handle("/info", middleware.RequireRegistration(container.InfoHandler.Info, app))
+	bot.Handle("/info", middleware.RequireTMDBToken(container.InfoHandler.Info, app))
 }
 
 func SetupWatchlistRoutes(bot *telebot.Bot, container *api.Resolver, app *appCfg.App) {
-	bot.Handle("/w", middleware.RequireRegistration(container.WatchlistHandler.WatchlistInfo, app))
+	bot.Handle("/w", middleware.RequireTMDBToken(container.WatchlistHandler.WatchlistInfo, app))
 }
 
 func handleCallback(container *api.Resolver) func(c telebot.Context) error {

@@ -39,6 +39,7 @@ const (
 	RegistrationRequired    = "You need to register to use this bot. Please type /start to continue"
 	MenuSearchTVResponse    = "Write TV Show Title"
 	MenuSearchMovieResponse = "Write Movie Title"
+	TokenRequired           = "Can't search now, send API token"
 )
 
 const (
