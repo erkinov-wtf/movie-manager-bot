@@ -12,7 +12,8 @@ type Config struct {
 }
 
 type General struct {
-	BotToken string
+	BotToken  string
+	SecretKey string
 }
 
 type Database struct {
@@ -42,7 +43,8 @@ type Endpoints struct {
 func MustLoad() *Config {
 	cfg := Config{
 		General: General{
-			BotToken: getEnv("BOT_TOKEN"),
+			BotToken:  getEnv("BOT_TOKEN"),
+			SecretKey: getEnv("SECRET_KEY"),
 		},
 		Database: Database{
 			Host:     getEnv("DB_HOST"),

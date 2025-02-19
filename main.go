@@ -10,6 +10,7 @@ import (
 	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/cache"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/database"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/tmdb"
+	"github.com/erkinov-wtf/movie-manager-bot/pkg/encryption"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/workers"
 	"gopkg.in/telebot.v3"
 	"log"
@@ -22,9 +23,10 @@ func main() {
 	tmdbClient := tmdb.NewClient(cfg)
 	log.Print("api client initialized")
 	db := database.MustLoadDb(cfg)
-	cacheManager := cache.NewCacheManager(db)
+	encryptor := encryption.NewKeyEncryptor(cfg.General.SecretKey)
+	cacheManager := cache.NewCacheManager(db, encryptor)
 
-	appCfg := app.NewApp(cfg, db, tmdbClient, cacheManager)
+	appCfg := app.NewApp(cfg, db, tmdbClient, cacheManager, encryptor)
 
 	settings := telebot.Settings{
 		Token:  cfg.General.BotToken,
