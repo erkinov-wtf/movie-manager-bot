@@ -106,9 +106,15 @@ func (h *DefaultHandler) HandleTextInput(context telebot.Context) error {
 		return context.Send(messages.TokenTestFailed, telebot.ModeMarkdown)
 	}
 
+	encrypted, err := h.app.Encryptor.Encrypt(inputText)
+	if err != nil {
+		log.Printf("error encrypting api key: %v", err.Error())
+		return context.Send(messages.InternalError)
+	}
+
 	if err := h.app.Database.Model(&models.User{}).
 		Where("id = ?", userId).
-		Update("tmdb_api_key", inputText).Error; err != nil {
+		Update("tmdb_api_key", encrypted).Error; err != nil {
 		log.Print(err)
 		return context.Send(messages.InternalError)
 	}

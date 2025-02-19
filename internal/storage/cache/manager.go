@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"github.com/erkinov-wtf/movie-manager-bot/pkg/encryption"
 	"gorm.io/gorm"
 	"sync"
 )
@@ -13,11 +14,11 @@ type Manager struct {
 	mu          sync.RWMutex
 }
 
-func NewCacheManager(db *gorm.DB) *Manager {
+func NewCacheManager(db *gorm.DB, encryptor *encryption.KeyEncryptor) *Manager {
 	return &Manager{
 		MovieCache:  make(map[int]*Item),
 		TVShowCache: make(map[int]*Item),
-		UserCache:   NewUserCache(db),
+		UserCache:   NewUserCache(db, encryptor),
 		ImageCache:  NewImageCache(),
 	}
 }

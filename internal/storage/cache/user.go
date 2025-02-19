@@ -2,6 +2,7 @@ package cache
 
 import (
 	"github.com/erkinov-wtf/movie-manager-bot/internal/models"
+	"github.com/erkinov-wtf/movie-manager-bot/pkg/encryption"
 	"gorm.io/gorm"
 	"log"
 	"sync"
@@ -16,9 +17,10 @@ type UserCacheItem struct {
 }
 
 type UserCacheData struct {
-	items map[int64]UserCacheItem
-	mu    sync.RWMutex
-	db    *gorm.DB
+	items     map[int64]UserCacheItem
+	mu        sync.RWMutex
+	db        *gorm.DB
+	encryptor *encryption.KeyEncryptor
 }
 
 type ApiToken struct {
@@ -32,11 +34,13 @@ type SearchState struct {
 	IsTVShowSearch  bool
 }
 
-func NewUserCache(db *gorm.DB) *UserCacheData {
+func NewUserCache(db *gorm.DB, keyEncryptor *encryption.KeyEncryptor) *UserCacheData {
 	userCache := UserCacheData{
-		items: make(map[int64]UserCacheItem),
-		db:    db,
+		items:     make(map[int64]UserCacheItem),
+		db:        db,
+		encryptor: keyEncryptor,
 	}
+
 	log.Print("User cache setup")
 	return &userCache
 }
@@ -185,5 +189,11 @@ func (c *UserCacheData) getTokenDb(userId int64, isTokenWaiting bool) string {
 		return ""
 	}
 
-	return apiTokenDb
+	decryptedToken, err := c.encryptor.Decrypt(apiTokenDb)
+	if err != nil {
+		log.Printf("error decrypting token: %v", err)
+		return ""
+	}
+
+	return decryptedToken
 }
