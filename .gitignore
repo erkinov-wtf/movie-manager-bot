@@ -2,3 +2,4 @@
 .idea
 tmp/
 worker_state
+migrations/atlas.sum
