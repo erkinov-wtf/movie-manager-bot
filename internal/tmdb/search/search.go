@@ -11,8 +11,8 @@ import (
 
 func SearchMovie(app *appCfg.App, movieTitle string, userId int64) (*MovieSearch, error) {
 	params := map[string]string{
-		"include_adult": "true",
-		"query":         movieTitle,
+		"query": movieTitle,
+		// new queries should be written here
 	}
 	url := utils.MakeUrl(app, app.Cfg.Endpoints.SearchMovie, params, userId)
 

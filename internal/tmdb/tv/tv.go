@@ -88,7 +88,7 @@ func ShowTV(app *appCfg.App, context telebot.Context, tvData *TV, isTVShow bool)
 		tvData.Episodes,
 	)
 
-	// Check if the movie is already in the user's watchlist
+	// Check if the tv is already in the user's watchlist
 	var watchlist []models.Watchlist
 	if err = app.Database.Where("show_api_id = ? AND user_id = ?", tvData.Id, context.Sender().ID).Find(&watchlist).Error; err != nil {
 		log.Printf("Database error: %v", err)
