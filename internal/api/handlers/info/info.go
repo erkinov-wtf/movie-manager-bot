@@ -2,7 +2,7 @@ package info
 
 import (
 	"fmt"
-	models2 "github.com/erkinov-wtf/movie-manager-bot/internal/models"
+	"github.com/erkinov-wtf/movie-manager-bot/internal/models"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/messages"
 	"gopkg.in/telebot.v3"
 	"log"
@@ -39,7 +39,7 @@ func (h *InfoHandler) Info(context telebot.Context) error {
 }
 
 func (h *InfoHandler) handleTVDetails(context telebot.Context, msgId string) error {
-	var watchedShows []models2.TVShows
+	var watchedShows []models.TVShows
 
 	if err := h.app.Database.Where("user_id = ?", context.Sender().ID).Find(&watchedShows).Error; err != nil {
 		log.Printf("cant get all tv shows: %v", err.Error())
@@ -81,7 +81,7 @@ func (h *InfoHandler) handleTVDetails(context telebot.Context, msgId string) err
 }
 
 func (h *InfoHandler) handleMovieDetails(context telebot.Context, msgId string) error {
-	var watchedMovies []models2.Movie
+	var watchedMovies []models.Movie
 
 	if err := h.app.Database.Where("user_id = ?", context.Sender().ID).Find(&watchedMovies).Error; err != nil {
 		log.Printf("cant get all tv movies: %v", err.Error())
@@ -123,8 +123,8 @@ func (h *InfoHandler) handleMovieDetails(context telebot.Context, msgId string) 
 }
 
 func (h *InfoHandler) handleFullDetails(context telebot.Context, data string) error {
-	var watchedMovies []models2.Movie
-	var watchedShows []models2.TVShows
+	var watchedMovies []models.Movie
+	var watchedShows []models.TVShows
 
 	if err := h.app.Database.Where("user_id = ?", context.Sender().ID).Find(&watchedMovies).Error; err != nil {
 		log.Printf("cant get all movies: %v", err.Error())
