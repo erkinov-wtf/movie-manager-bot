@@ -1,10 +1,11 @@
-package database
+package repository
 
 import (
 	"context"
 	"fmt"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/config"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/models"
+	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/database"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -14,15 +15,12 @@ import (
 
 // DbConn wraps SQLC queries with connection management
 type DbConn struct {
-	*Queries
-	pool *pgxpool.Pool
-}
-
-// Close closes the database connection pool
-func (db *DbConn) Close() {
-	if db.pool != nil {
-		db.pool.Close()
-	}
+	Users      UserRepositoryInterface
+	Movies     MovieRepositoryInterface
+	TVShows    TVShowRepositoryInterface
+	Watchlists WatchlistRepositoryInterface
+	rawQueries *database.Queries
+	pool       *pgxpool.Pool
 }
 
 func MustLoadDb(config *config.Config) *gorm.DB {
@@ -52,8 +50,8 @@ func MustLoadDb(config *config.Config) *gorm.DB {
 	return db
 }
 
-// ConnectSqlcWithPool connects to the database and returns a SQLC Queries instance with the underlying pool
-func ConnectSqlcWithPool(config *config.Config, ctx context.Context) (*DbConn, error) {
+// connectSqlcWithPool connects to the database and returns a SQLC Queries instance with the underlying pool
+func connectSqlcWithPool(config *config.Config, ctx context.Context) (*DbConn, error) {
 	connString := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 		config.Database.User,
 		config.Database.Password,
@@ -94,15 +92,30 @@ func ConnectSqlcWithPool(config *config.Config, ctx context.Context) (*DbConn, e
 	)
 
 	return &DbConn{
-		Queries: New(pool),
-		pool:    pool,
+		Users:      NewUserRepository(pool),
+		Movies:     NewMovieRepository(pool),
+		TVShows:    NewTVShowRepository(pool),
+		Watchlists: NewWatchlistRepository(pool),
+		rawQueries: database.New(pool),
+		pool:       pool,
 	}, nil
 }
 
 func MustConnectDB(config *config.Config, ctx context.Context) *DbConn {
-	db, err := ConnectSqlcWithPool(config, ctx)
+	db, err := connectSqlcWithPool(config, ctx)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 	return db
+}
+
+// Close closes the database connection pool
+func (db *DbConn) Close() {
+	if db.pool != nil {
+		db.pool.Close()
+	}
+}
+
+func (db *DbConn) RawSql() *database.Queries {
+	return db.rawQueries
 }
