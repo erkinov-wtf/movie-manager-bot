@@ -18,6 +18,10 @@ import (
 )
 
 func main() {
+	// Create a cancellable context
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	log.Print("starting bot...")
 	cfg := config.MustLoad()
 	tmdbClient := tmdb.NewClient(cfg)
@@ -48,10 +52,6 @@ func main() {
 	routes.SetupInfoRoutes(bot, resolver, appCfg)
 	routes.SetupWatchlistRoutes(bot, resolver, appCfg)
 	log.Print("bot handlers setup")
-
-	// Create a cancellable context
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	// Start the checker in a separate goroutine
 	apiClient := workers.NewWorkerApiClient(50)

@@ -14,7 +14,7 @@ type Movie struct {
 	UserID    int64
 	ApiID     int64
 	Title     string
-	Runtime   pgtype.Int4
+	Runtime   *int32
 	CreatedAt pgtype.Timestamptz
 	UpdatedAt pgtype.Timestamptz
 	DeletedAt pgtype.Timestamptz
@@ -38,11 +38,11 @@ type TvShow struct {
 // Stores user information for authentication and preferences
 type User struct {
 	ID         int64
-	FirstName  pgtype.Text
-	LastName   pgtype.Text
-	Username   pgtype.Text
+	FirstName  *string
+	LastName   *string
+	Username   *string
 	Language   string
-	TmdbApiKey pgtype.Text
+	TmdbApiKey *string
 	CreatedAt  pgtype.Timestamptz
 	UpdatedAt  pgtype.Timestamptz
 }
@@ -54,7 +54,7 @@ type Watchlist struct {
 	ShowApiID int64
 	Type      string
 	Title     string
-	Image     pgtype.Text
+	Image     *string
 	CreatedAt pgtype.Timestamptz
 	UpdatedAt pgtype.Timestamptz
 	DeletedAt pgtype.Timestamptz
