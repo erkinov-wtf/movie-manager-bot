@@ -3,7 +3,6 @@ package cache
 import (
 	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/database/repository"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/encryption"
-	"gorm.io/gorm"
 	"sync"
 )
 

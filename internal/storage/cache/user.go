@@ -2,10 +2,8 @@ package cache
 
 import (
 	"context"
-	"github.com/erkinov-wtf/movie-manager-bot/internal/models"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/database/repository"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/encryption"
-	"gorm.io/gorm"
 	"log"
 	"sync"
 	"time"
@@ -93,13 +91,10 @@ func (c *UserCacheData) Fetch(userId int64) (isActive bool, data *UserCacheItem)
 		delete(c.items, userId)
 	}
 
-	getUser, err := c.db.Users.GetUser(context.Background(), userId)
-	if err != nil {
-		return false, nil
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
 
-	var user models.User
-	err := c.db.First(&user, "id = ?", userId).Error
+	user, err := c.db.Users.GetUser(ctx, userId)
 	if err != nil {
 		log.Printf("Failed to fetch user %d from database: %v", userId, err)
 		return false, nil
@@ -188,11 +183,12 @@ func (c *UserCacheData) getTokenDb(userId int64, isTokenWaiting bool) string {
 		return ""
 	}
 
-	var apiTokenDb string
-	if err := c.db.Model(&models.User{}).Where("id = ?", userId).
-		Select("tmdb_api_key").
-		Pluck("tmdb_api_key", &apiTokenDb).Error; err != nil {
-		log.Print(err)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	apiTokenDb, err := c.db.Users.GetUserTMDBKey(ctx, userId)
+	if err != nil {
+		log.Println(err)
 		return ""
 	}
 

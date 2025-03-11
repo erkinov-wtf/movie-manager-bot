@@ -1,150 +1,167 @@
 package defaults
 
 import (
-	"errors"
+	"context"
 	"fmt"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/models"
+	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/database"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/messages"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/utils"
 	"gopkg.in/telebot.v3"
-	"gorm.io/gorm"
 	"log"
+	"time"
 
 	"strings"
 )
 
-func (h *DefaultHandler) Start(context telebot.Context) error {
+func (h *DefaultHandler) Start(ctx telebot.Context) error {
 	log.Print(messages.StartCommand)
 
-	var existingUser models.User
-	if err := h.app.Database.Where("id = ?", context.Sender().ID).First(&existingUser).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			btn := &telebot.ReplyMarkup{}
-			btnRows := []telebot.Row{
-				btn.Row(btn.Data("✅ I Agree", "", fmt.Sprint("default|start|"))),
-			}
+	ctxDb, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
 
-			btn.Inline(btnRows...)
-			err = context.Send(messages.PrivacyPolicy, &telebot.SendOptions{
-				ParseMode:   telebot.ModeMarkdown,
-				ReplyMarkup: btn,
-			})
-			if err != nil {
-				log.Printf(err.Error())
-				return context.Send(messages.InternalError)
-			}
-		} else {
-			log.Printf("Database error: %v", err)
-			return context.Send(messages.InternalError)
+	userExists, err := h.app.Repository.Users.UserExists(ctxDb, ctx.Sender().ID)
+	if err != nil {
+		log.Println(err)
+		return ctx.Send(messages.InternalError)
+	}
+
+	if !userExists {
+		btn := &telebot.ReplyMarkup{}
+		btnRows := []telebot.Row{
+			btn.Row(btn.Data("✅ I Agree", "", fmt.Sprint("default|start|"))),
+		}
+
+		btn.Inline(btnRows...)
+		err = ctx.Send(messages.PrivacyPolicy, &telebot.SendOptions{
+			ParseMode:   telebot.ModeMarkdown,
+			ReplyMarkup: btn,
+		})
+		if err != nil {
+			log.Printf(err.Error())
+			return ctx.Send(messages.InternalError)
 		}
 	} else {
-		menu := h.keyboards.LoadMenu(context.Bot())
-		err = context.Send(messages.UseHelp, telebot.ModeMarkdown, menu)
+		menu := h.keyboards.LoadMenu(ctx.Bot())
+		err = ctx.Send(messages.UseHelp, telebot.ModeMarkdown, menu)
 		if err != nil {
 			log.Print(err)
-			return context.Send(messages.InternalError)
+			return ctx.Send(messages.InternalError)
 		}
 	}
 
 	return nil
 }
 
-func (h *DefaultHandler) handleStartCallback(context telebot.Context) error {
+func (h *DefaultHandler) handleStartCallback(ctx telebot.Context) error {
+	ctxDb, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
 	newUser := models.User{
-		Id:         context.Sender().ID,
-		FirstName:  &context.Sender().FirstName,
-		LastName:   &context.Sender().LastName,
-		Username:   &context.Sender().Username,
-		Language:   &context.Sender().LanguageCode,
+		Id:         ctx.Sender().ID,
+		FirstName:  &ctx.Sender().FirstName,
+		LastName:   &ctx.Sender().LastName,
+		Username:   &ctx.Sender().Username,
+		Language:   &ctx.Sender().LanguageCode,
 		TmdbApiKey: nil,
 	}
 
-	if err := h.app.Database.Create(&newUser).Error; err != nil {
-		log.Printf("cant create user: %v", err.Error())
-		return context.Send(messages.InternalError)
+	newUser := database.CreateUserParams{
+		FirstName:  ctx.Sender().ID,
+		LastName:   &ctx.Sender().FirstName,
+		Username:   &ctx.Sender().LastName,
+		Language:   ctx.Sender().Username,
+		TmdbApiKey: &ctx.Sender().LanguageCode,
 	}
 
-	keyboard := h.keyboards.LoadTokenRegistration(context.Bot(), h)
-	return context.Send(messages.Registered, keyboard, telebot.ModeMarkdown)
+	h.app.Repository.Users.CreateUser(ctxDb, newUser)
+
+	if err := h.app.Database.Create(&newUser).Error; err != nil {
+		log.Printf("cant create user: %v", err.Error())
+		return ctx.Send(messages.InternalError)
+	}
+
+	keyboard := h.keyboards.LoadTokenRegistration(ctx.Bot(), h)
+	return ctx.Send(messages.Registered, keyboard, telebot.ModeMarkdown)
 }
 
-func (h *DefaultHandler) GetToken(context telebot.Context) error {
-	userId := context.Sender().ID
+func (h *DefaultHandler) GetToken(ctx telebot.Context) error {
+	userId := ctx.Sender().ID
 	isActive, userCache := h.app.Cache.UserCache.Get(userId)
 
 	if isActive && !userCache.ApiToken.IsTokenWaiting {
-		return context.Send(messages.TokenAlreadyExists, telebot.ModeMarkdown)
+		return ctx.Send(messages.TokenAlreadyExists, telebot.ModeMarkdown)
 	}
 
-	return context.Send(messages.TokenInstructions, telebot.ModeMarkdown)
+	return ctx.Send(messages.TokenInstructions, telebot.ModeMarkdown)
 }
 
-func (h *DefaultHandler) HandleReplySearch(context telebot.Context) error {
-	_, uc := h.app.Cache.UserCache.Get(context.Sender().ID)
+func (h *DefaultHandler) HandleReplySearch(ctx telebot.Context) error {
+	_, uc := h.app.Cache.UserCache.Get(ctx.Sender().ID)
 
 	if uc.SearchState.IsTVShowSearch {
-		return h.handleTVShowSearch(context)
+		return h.handleTVShowSearch(ctx)
 	}
-	return h.handleMovieSearch(context)
+	return h.handleMovieSearch(ctx)
 }
 
-func (h *DefaultHandler) handleTVShowSearch(context telebot.Context) error {
-	h.app.Cache.UserCache.SetSearchStartFalse(context.Sender().ID)
-	return h.tvHandler.SearchTV(context)
+func (h *DefaultHandler) handleTVShowSearch(ctx telebot.Context) error {
+	h.app.Cache.UserCache.SetSearchStartFalse(ctx.Sender().ID)
+	return h.tvHandler.SearchTV(ctx)
 }
 
-func (h *DefaultHandler) handleMovieSearch(context telebot.Context) error {
-	h.app.Cache.UserCache.SetSearchStartFalse(context.Sender().ID)
-	return h.movieHandler.SearchMovie(context)
+func (h *DefaultHandler) handleMovieSearch(ctx telebot.Context) error {
+	h.app.Cache.UserCache.SetSearchStartFalse(ctx.Sender().ID)
+	return h.movieHandler.SearchMovie(ctx)
 }
 
-func (h *DefaultHandler) HandleTextInput(context telebot.Context) error {
-	userId := context.Sender().ID
-	inputText := context.Message().Text
+func (h *DefaultHandler) HandleTextInput(ctx telebot.Context) error {
+	userId := ctx.Sender().ID
+	inputText := ctx.Message().Text
 
 	if !utils.TestApiToken(h.app, inputText) {
-		return context.Send(messages.TokenTestFailed, telebot.ModeMarkdown)
+		return ctx.Send(messages.TokenTestFailed, telebot.ModeMarkdown)
 	}
 
 	encrypted, err := h.app.Encryptor.Encrypt(inputText)
 	if err != nil {
 		log.Printf("error encrypting api key: %v", err.Error())
-		return context.Send(messages.InternalError)
+		return ctx.Send(messages.InternalError)
 	}
 
 	if err := h.app.Database.Model(&models.User{}).
 		Where("id = ?", userId).
 		Update("tmdb_api_key", encrypted).Error; err != nil {
 		log.Print(err)
-		return context.Send(messages.InternalError)
+		return ctx.Send(messages.InternalError)
 	}
 
 	h.app.Cache.UserCache.UpdateTokenState(userId, false)
-	menu := h.keyboards.LoadMenu(context.Bot())
+	menu := h.keyboards.LoadMenu(ctx.Bot())
 
-	return context.Send(messages.TokenSaved, menu, telebot.ModeMarkdown)
+	return ctx.Send(messages.TokenSaved, menu, telebot.ModeMarkdown)
 }
 
-func (h *DefaultHandler) DefaultCallback(context telebot.Context) error {
-	callback := context.Callback()
+func (h *DefaultHandler) DefaultCallback(ctx telebot.Context) error {
+	callback := ctx.Callback()
 	trimmed := strings.TrimSpace(callback.Data)
 
 	if !strings.HasPrefix(trimmed, "default|") {
-		return context.Send(messages.InternalError)
+		return ctx.Send(messages.InternalError)
 	}
 
 	dataParts := strings.Split(trimmed, "|")
 	if len(dataParts) != 3 {
 		log.Printf("Received malformed callback data: %s", callback.Data)
-		return context.Respond(&telebot.CallbackResponse{Text: messages.MalformedData})
+		return ctx.Respond(&telebot.CallbackResponse{Text: messages.MalformedData})
 	}
 
 	action := dataParts[1]
 	switch action {
 	case "start":
-		return h.handleStartCallback(context)
+		return h.handleStartCallback(ctx)
 
 	default:
-		return context.Respond(&telebot.CallbackResponse{Text: messages.UnknownAction})
+		return ctx.Respond(&telebot.CallbackResponse{Text: messages.UnknownAction})
 	}
 }

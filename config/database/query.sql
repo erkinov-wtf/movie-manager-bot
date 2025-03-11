@@ -1,29 +1,29 @@
 /* Users Table */
 
 -- name: GetUser :one
-SELECT id, first_name, last_name, username, language, tmdb_api_key, created_at, updated_at
+SELECT id, tg_id, first_name, last_name, username, language, tmdb_api_key, created_at, updated_at
 FROM users
-WHERE id = $1 LIMIT 1;
+WHERE tg_id = $1 LIMIT 1;
 
 -- name: GetUsers :many
-SELECT id, first_name, last_name, username, language, created_at, updated_at
+SELECT id, tg_id, first_name, last_name, username, language, created_at, updated_at
 FROM users;
 
 -- name: UserExists :one
-SELECT EXISTS(SELECT 1 FROM users WHERE id = $1);
+SELECT EXISTS(SELECT 1 FROM users WHERE tg_id = $1);
 
 -- name: CreateUser :exec
-INSERT INTO users (first_name, last_name, username, language, tmdb_api_key)
-VALUES ($1, $2, $3, $4, $5);
+INSERT INTO users (tg_id, first_name, last_name, username, language, tmdb_api_key)
+VALUES ($1, $2, $3, $4, $5, $5);
 
 -- name: UpdateUserTMDBKey :exec
 UPDATE users
 SET tmdb_api_key = $2
-WHERE id = $1;
+WHERE tg_id = $1;
 
 -- name: GetUserTMDBKey :one
 SELECT tmdb_api_key FROM users
-WHERE id = $1 LIMIT 1;
+WHERE tg_id = $1 LIMIT 1;
 
 
 /* TV Shows Table */

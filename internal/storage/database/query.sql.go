@@ -62,25 +62,25 @@ func (q *Queries) CreateTVShow(ctx context.Context, arg CreateTVShowParams) erro
 }
 
 const createUser = `-- name: CreateUser :exec
-INSERT INTO users (first_name, last_name, username, language, tmdb_api_key)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO users (tg_id, first_name, last_name, username, language, tmdb_api_key)
+VALUES ($1, $2, $3, $4, $5, $5)
 `
 
 type CreateUserParams struct {
-	FirstName  *string
-	LastName   *string
-	Username   *string
-	Language   string
-	TmdbApiKey *string
+	TgID      int64
+	FirstName *string
+	LastName  *string
+	Username  *string
+	Language  string
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
 	_, err := q.db.Exec(ctx, createUser,
+		arg.TgID,
 		arg.FirstName,
 		arg.LastName,
 		arg.Username,
 		arg.Language,
-		arg.TmdbApiKey,
 	)
 	return err
 }
@@ -129,17 +129,18 @@ func (q *Queries) DeleteWatchlist(ctx context.Context, arg DeleteWatchlistParams
 
 const getUser = `-- name: GetUser :one
 
-SELECT id, first_name, last_name, username, language, tmdb_api_key, created_at, updated_at
+SELECT id, tg_id, first_name, last_name, username, language, tmdb_api_key, created_at, updated_at
 FROM users
-WHERE id = $1 LIMIT 1
+WHERE tg_id = $1 LIMIT 1
 `
 
 // Users Table
-func (q *Queries) GetUser(ctx context.Context, id int64) (User, error) {
-	row := q.db.QueryRow(ctx, getUser, id)
+func (q *Queries) GetUser(ctx context.Context, tgID int64) (User, error) {
+	row := q.db.QueryRow(ctx, getUser, tgID)
 	var i User
 	err := row.Scan(
 		&i.ID,
+		&i.TgID,
 		&i.FirstName,
 		&i.LastName,
 		&i.Username,
@@ -197,11 +198,11 @@ func (q *Queries) GetUserMovies(ctx context.Context, userID int64) ([]GetUserMov
 
 const getUserTMDBKey = `-- name: GetUserTMDBKey :one
 SELECT tmdb_api_key FROM users
-WHERE id = $1 LIMIT 1
+WHERE tg_id = $1 LIMIT 1
 `
 
-func (q *Queries) GetUserTMDBKey(ctx context.Context, id int64) (*string, error) {
-	row := q.db.QueryRow(ctx, getUserTMDBKey, id)
+func (q *Queries) GetUserTMDBKey(ctx context.Context, tgID int64) (*string, error) {
+	row := q.db.QueryRow(ctx, getUserTMDBKey, tgID)
 	var tmdb_api_key *string
 	err := row.Scan(&tmdb_api_key)
 	return tmdb_api_key, err
@@ -390,12 +391,13 @@ func (q *Queries) GetUserWatchlistsWithType(ctx context.Context, arg GetUserWatc
 }
 
 const getUsers = `-- name: GetUsers :many
-SELECT id, first_name, last_name, username, language, created_at, updated_at
+SELECT id, tg_id, first_name, last_name, username, language, created_at, updated_at
 FROM users
 `
 
 type GetUsersRow struct {
-	ID        int64
+	ID        pgtype.UUID
+	TgID      int64
 	FirstName *string
 	LastName  *string
 	Username  *string
@@ -415,6 +417,7 @@ func (q *Queries) GetUsers(ctx context.Context) ([]GetUsersRow, error) {
 		var i GetUsersRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.TgID,
 			&i.FirstName,
 			&i.LastName,
 			&i.Username,
@@ -564,25 +567,25 @@ func (q *Queries) UpdateTVShow(ctx context.Context, arg UpdateTVShowParams) erro
 const updateUserTMDBKey = `-- name: UpdateUserTMDBKey :exec
 UPDATE users
 SET tmdb_api_key = $2
-WHERE id = $1
+WHERE tg_id = $1
 `
 
 type UpdateUserTMDBKeyParams struct {
-	ID         int64
+	TgID       int64
 	TmdbApiKey *string
 }
 
 func (q *Queries) UpdateUserTMDBKey(ctx context.Context, arg UpdateUserTMDBKeyParams) error {
-	_, err := q.db.Exec(ctx, updateUserTMDBKey, arg.ID, arg.TmdbApiKey)
+	_, err := q.db.Exec(ctx, updateUserTMDBKey, arg.TgID, arg.TmdbApiKey)
 	return err
 }
 
 const userExists = `-- name: UserExists :one
-SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)
+SELECT EXISTS(SELECT 1 FROM users WHERE tg_id = $1)
 `
 
-func (q *Queries) UserExists(ctx context.Context, id int64) (bool, error) {
-	row := q.db.QueryRow(ctx, userExists, id)
+func (q *Queries) UserExists(ctx context.Context, tgID int64) (bool, error) {
+	row := q.db.QueryRow(ctx, userExists, tgID)
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err

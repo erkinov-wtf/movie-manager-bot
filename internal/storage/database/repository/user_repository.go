@@ -43,7 +43,7 @@ func (r *UserRepository) CreateUser(ctx context.Context, params database.CreateU
 
 func (r *UserRepository) UpdateUserTMDBKey(ctx context.Context, id int64, tmdbAPIKey string) error {
 	return r.query.UpdateUserTMDBKey(ctx, database.UpdateUserTMDBKeyParams{
-		ID:         id,
+		TgID:       id,
 		TmdbApiKey: &tmdbAPIKey,
 	})
 }

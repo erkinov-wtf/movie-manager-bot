@@ -37,7 +37,8 @@ type TvShow struct {
 
 // Stores user information for authentication and preferences
 type User struct {
-	ID         int64
+	ID         pgtype.UUID
+	TgID       int64
 	FirstName  *string
 	LastName   *string
 	Username   *string
