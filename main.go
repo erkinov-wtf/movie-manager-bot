@@ -26,11 +26,12 @@ func main() {
 	cfg := config.MustLoad()
 	tmdbClient := tmdb.NewClient(cfg)
 	log.Print("api client initialized")
-	db := repository.MustLoadDb(cfg)
+	//db := repository.MustLoadDb(cfg)
+	repoManager := repository.MustConnectDB(cfg, ctx)
 	encryptor := encryption.NewKeyEncryptor(cfg.General.SecretKey)
-	cacheManager := cache.NewCacheManager(db, encryptor)
+	cacheManager := cache.NewCacheManager(repoManager, encryptor)
 
-	appCfg := app.NewApp(cfg, db, tmdbClient, cacheManager, encryptor)
+	appCfg := app.NewApp(cfg, repoManager, tmdbClient, cacheManager, encryptor)
 
 	settings := telebot.Settings{
 		Token:  cfg.General.BotToken,

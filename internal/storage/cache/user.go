@@ -1,7 +1,9 @@
 package cache
 
 import (
+	"context"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/models"
+	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/database/repository"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/encryption"
 	"gorm.io/gorm"
 	"log"
@@ -19,7 +21,7 @@ type UserCacheItem struct {
 type UserCacheData struct {
 	items     map[int64]UserCacheItem
 	mu        sync.RWMutex
-	db        *gorm.DB
+	db        *repository.Manager
 	encryptor *encryption.KeyEncryptor
 }
 
@@ -34,10 +36,10 @@ type SearchState struct {
 	IsTVShowSearch  bool
 }
 
-func NewUserCache(db *gorm.DB, keyEncryptor *encryption.KeyEncryptor) *UserCacheData {
+func NewUserCache(repos *repository.Manager, keyEncryptor *encryption.KeyEncryptor) *UserCacheData {
 	userCache := UserCacheData{
 		items:     make(map[int64]UserCacheItem),
-		db:        db,
+		db:        repos,
 		encryptor: keyEncryptor,
 	}
 
@@ -89,6 +91,11 @@ func (c *UserCacheData) Fetch(userId int64) (isActive bool, data *UserCacheItem)
 			return true, &userCache
 		}
 		delete(c.items, userId)
+	}
+
+	getUser, err := c.db.Users.GetUser(context.Background(), userId)
+	if err != nil {
+		return false, nil
 	}
 
 	var user models.User

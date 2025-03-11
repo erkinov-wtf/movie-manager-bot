@@ -13,8 +13,8 @@ import (
 	"time"
 )
 
-// DbConn wraps SQLC queries with connection management
-type DbConn struct {
+// Manager wraps SQLC queries with connection management
+type Manager struct {
 	Users      UserRepositoryInterface
 	Movies     MovieRepositoryInterface
 	TVShows    TVShowRepositoryInterface
@@ -51,7 +51,7 @@ func MustLoadDb(config *config.Config) *gorm.DB {
 }
 
 // connectSqlcWithPool connects to the database and returns a SQLC Queries instance with the underlying pool
-func connectSqlcWithPool(config *config.Config, ctx context.Context) (*DbConn, error) {
+func connectSqlcWithPool(config *config.Config, ctx context.Context) (*Manager, error) {
 	connString := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 		config.Database.User,
 		config.Database.Password,
@@ -91,7 +91,7 @@ func connectSqlcWithPool(config *config.Config, ctx context.Context) (*DbConn, e
 		config.Database.Port,
 	)
 
-	return &DbConn{
+	return &Manager{
 		Users:      NewUserRepository(pool),
 		Movies:     NewMovieRepository(pool),
 		TVShows:    NewTVShowRepository(pool),
@@ -101,7 +101,7 @@ func connectSqlcWithPool(config *config.Config, ctx context.Context) (*DbConn, e
 	}, nil
 }
 
-func MustConnectDB(config *config.Config, ctx context.Context) *DbConn {
+func MustConnectDB(config *config.Config, ctx context.Context) *Manager {
 	db, err := connectSqlcWithPool(config, ctx)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
@@ -110,12 +110,12 @@ func MustConnectDB(config *config.Config, ctx context.Context) *DbConn {
 }
 
 // Close closes the database connection pool
-func (db *DbConn) Close() {
+func (db *Manager) Close() {
 	if db.pool != nil {
 		db.pool.Close()
 	}
 }
 
-func (db *DbConn) RawSql() *database.Queries {
+func (db *Manager) RawSql() *database.Queries {
 	return db.rawQueries
 }
