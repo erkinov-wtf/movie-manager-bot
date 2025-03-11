@@ -6,6 +6,7 @@ import (
 	"github.com/erkinov-wtf/movie-manager-bot/internal/config"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/models"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/database"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -21,6 +22,18 @@ type Manager struct {
 	Watchlists WatchlistRepositoryInterface
 	rawQueries *database.Queries
 	pool       *pgxpool.Pool
+}
+
+type Tx struct {
+	tx    pgx.Tx
+	Repos *ReposTx
+}
+
+type ReposTx struct {
+	Users      UserRepositoryInterface
+	Movies     MovieRepositoryInterface
+	TVShows    TVShowRepositoryInterface
+	Watchlists WatchlistRepositoryInterface
 }
 
 func MustLoadDb(config *config.Config) *gorm.DB {
@@ -110,12 +123,46 @@ func MustConnectDB(config *config.Config, ctx context.Context) *Manager {
 }
 
 // Close closes the database connection pool
-func (db *Manager) Close() {
-	if db.pool != nil {
-		db.pool.Close()
+func (m *Manager) Close() {
+	if m.pool != nil {
+		m.pool.Close()
 	}
 }
 
-func (db *Manager) RawSql() *database.Queries {
-	return db.rawQueries
+func (m *Manager) RawSql() *database.Queries {
+	return m.rawQueries
+}
+
+// BeginTx starts a transaction and returns a wrapped Tx containing the repos.
+func (m *Manager) BeginTx(ctx context.Context) (*Tx, error) {
+	tx, err := m.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &Tx{
+		tx: tx,
+		Repos: &ReposTx{
+			Users:      NewUserRepository(tx),
+			Movies:     NewMovieRepository(tx),
+			TVShows:    NewTVShowRepository(tx),
+			Watchlists: NewWatchlistRepository(tx),
+		},
+	}, nil
+}
+
+// Commit commits the transaction and clears the internal transaction pointer.
+func (t *Tx) Commit(ctx context.Context) error {
+	err := t.tx.Commit(ctx)
+	t.tx = nil // Prevent deferred rollback
+	return err
+}
+
+// Rollback rolls back the transaction if it hasn't been committed.
+func (t *Tx) Rollback(ctx context.Context) error {
+	if t.tx == nil {
+		return nil // Already committed or rolled back.
+	}
+	err := t.tx.Rollback(ctx)
+	t.tx = nil
+	return err
 }
