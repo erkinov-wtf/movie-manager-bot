@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS users
 (
     id           UUID        NOT NULL DEFAULT gen_random_uuid(),
     tg_id        BIGSERIAL   NOT NULL,
-    first_name    TEXT,
+    first_name   TEXT,
     last_name    TEXT,
     username     TEXT UNIQUE,
     language     TEXT        NOT NULL DEFAULT 'en',
@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS movies
     user_id    BIGINT      NOT NULL,
     api_id     BIGINT      NOT NULL,
     title      TEXT        NOT NULL,
-    runtime    INT,
+    runtime    INT         NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     deleted_at TIMESTAMPTZ,

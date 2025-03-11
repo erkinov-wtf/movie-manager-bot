@@ -20,7 +20,7 @@ type CreateMovieParams struct {
 	UserID  int64
 	ApiID   int64
 	Title   string
-	Runtime *int32
+	Runtime int32
 }
 
 func (q *Queries) CreateMovie(ctx context.Context, arg CreateMovieParams) error {
@@ -163,7 +163,7 @@ type GetUserMoviesRow struct {
 	ID        pgtype.UUID
 	ApiID     int64
 	Title     string
-	Runtime   *int32
+	Runtime   int32
 	CreatedAt pgtype.Timestamptz
 	UpdatedAt pgtype.Timestamptz
 }
@@ -525,7 +525,7 @@ WHERE api_id = $1 AND user_id = $2 AND deleted_at IS NULL
 type UpdateMovieParams struct {
 	ApiID   int64
 	UserID  int64
-	Runtime *int32
+	Runtime int32
 	Title   string
 }
 

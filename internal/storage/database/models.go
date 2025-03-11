@@ -14,7 +14,7 @@ type Movie struct {
 	UserID    int64
 	ApiID     int64
 	Title     string
-	Runtime   *int32
+	Runtime   int32
 	CreatedAt pgtype.Timestamptz
 	UpdatedAt pgtype.Timestamptz
 	DeletedAt pgtype.Timestamptz
