@@ -63,15 +63,16 @@ func (q *Queries) CreateTVShow(ctx context.Context, arg CreateTVShowParams) erro
 
 const createUser = `-- name: CreateUser :exec
 INSERT INTO users (tg_id, first_name, last_name, username, language, tmdb_api_key)
-VALUES ($1, $2, $3, $4, $5, $5)
+VALUES ($1, $2, $3, $4, $5, $6)
 `
 
 type CreateUserParams struct {
-	TgID      int64
-	FirstName *string
-	LastName  *string
-	Username  *string
-	Language  string
+	TgID       int64
+	FirstName  *string
+	LastName   *string
+	Username   *string
+	Language   string
+	TmdbApiKey *string
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
@@ -81,6 +82,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
 		arg.LastName,
 		arg.Username,
 		arg.Language,
+		arg.TmdbApiKey,
 	)
 	return err
 }

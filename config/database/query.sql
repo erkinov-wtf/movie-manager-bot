@@ -14,7 +14,7 @@ SELECT EXISTS(SELECT 1 FROM users WHERE tg_id = $1);
 
 -- name: CreateUser :exec
 INSERT INTO users (tg_id, first_name, last_name, username, language, tmdb_api_key)
-VALUES ($1, $2, $3, $4, $5, $5);
+VALUES ($1, $2, $3, $4, $5, $6);
 
 -- name: UpdateUserTMDBKey :exec
 UPDATE users

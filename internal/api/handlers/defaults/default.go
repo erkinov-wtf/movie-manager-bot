@@ -57,11 +57,12 @@ func (h *DefaultHandler) handleStartCallback(ctx telebot.Context) error {
 	defer cancel()
 
 	newUser := database.CreateUserParams{
-		TgID:      ctx.Sender().ID,
-		FirstName: &ctx.Sender().FirstName,
-		LastName:  &ctx.Sender().LastName,
-		Username:  &ctx.Sender().Username,
-		Language:  ctx.Sender().LanguageCode,
+		TgID:       ctx.Sender().ID,
+		FirstName:  &ctx.Sender().FirstName,
+		LastName:   &ctx.Sender().LastName,
+		Username:   &ctx.Sender().Username,
+		Language:   ctx.Sender().LanguageCode,
+		TmdbApiKey: nil,
 	}
 
 	err := h.app.Repository.Users.CreateUser(ctxDb, newUser)

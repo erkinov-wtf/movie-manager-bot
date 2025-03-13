@@ -108,7 +108,7 @@ func (h *TVHandler) handleTVDetails(ctx telebot.Context, data string) error {
 	return ctx.Respond(&telebot.CallbackResponse{Text: messages.TVShowSelected})
 }
 
-func getSeasonEmoji(seasonNumber int64) string {
+func getSeasonEmoji(seasonNumber int32) string {
 	numberEmojis := []string{"0️⃣", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣"}
 
 	if seasonNumber >= 0 && seasonNumber <= 9 {
@@ -146,10 +146,10 @@ func (h *TVHandler) handleSelectSeasons(ctx telebot.Context, tvId string) error 
 	btn := &telebot.ReplyMarkup{}
 	var btnRows []telebot.Row
 
-	for i := int64(1); i <= selectedTvShow[userId].Seasons; i++ {
+	for i := int32(1); i <= selectedTvShow[userId].Seasons; i++ {
 		emoji := getSeasonEmoji(i)
 
-		if i <= int64(watchedSeasons) {
+		if i <= int32(watchedSeasons) {
 			emoji = fmt.Sprintf("✅ %s", emoji)
 		}
 
