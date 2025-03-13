@@ -1,23 +1,24 @@
 package info
 
 import (
+	"context"
 	"fmt"
-	"github.com/erkinov-wtf/movie-manager-bot/internal/models"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/messages"
 	"gopkg.in/telebot.v3"
 	"log"
+	"time"
 
 	"strconv"
 	"strings"
 )
 
-func (h *InfoHandler) Info(context telebot.Context) error {
+func (h *InfoHandler) Info(ctx telebot.Context) error {
 	log.Print(messages.InfoCommand)
 
-	msg, err := context.Bot().Send(context.Chat(), messages.Loading)
+	msg, err := ctx.Bot().Send(ctx.Chat(), messages.Loading)
 	if err != nil {
 		log.Print(err)
-		return context.Send(messages.InternalError)
+		return ctx.Send(messages.InternalError)
 	}
 
 	btn := &telebot.ReplyMarkup{}
@@ -29,21 +30,23 @@ func (h *InfoHandler) Info(context telebot.Context) error {
 
 	btn.Inline(btnRows...)
 
-	_, err = context.Bot().Edit(msg, messages.InfoFirstMessage, btn)
+	_, err = ctx.Bot().Edit(msg, messages.InfoFirstMessage, btn)
 	if err != nil {
 		log.Print(err)
-		return context.Send(messages.InternalError)
+		return ctx.Send(messages.InternalError)
 	}
 
 	return nil
 }
 
-func (h *InfoHandler) handleTVDetails(context telebot.Context, msgId string) error {
-	var watchedShows []models.TVShows
+func (h *InfoHandler) handleTVDetails(ctx telebot.Context, msgId string) error {
+	ctxDb, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
 
-	if err := h.app.Database.Where("user_id = ?", context.Sender().ID).Find(&watchedShows).Error; err != nil {
+	watchedShows, err := h.app.Repository.TVShows.GetUserTVShows(ctxDb, ctx.Sender().ID)
+	if err != nil {
 		log.Printf("cant get all tv shows: %v", err.Error())
-		return context.Send(messages.InternalError)
+		return ctx.Send(messages.InternalError)
 	}
 
 	info := tvStats{}
@@ -54,7 +57,7 @@ func (h *InfoHandler) handleTVDetails(context telebot.Context, msgId string) err
 	}
 
 	msgID, _ := strconv.Atoi(msgId)
-	msg := &telebot.Message{ID: msgID, Chat: context.Chat()}
+	msg := &telebot.Message{ID: msgID, Chat: ctx.Chat()}
 
 	formattedTime := formatDuration(info.totalTime)
 	text := fmt.Sprintf(`📺 *TV Shows - Total Info*
@@ -71,21 +74,23 @@ func (h *InfoHandler) handleTVDetails(context telebot.Context, msgId string) err
 		info.totalTime/60,
 	)
 
-	_, err := context.Bot().Edit(msg, text, telebot.ModeMarkdown)
+	_, err = ctx.Bot().Edit(msg, text, telebot.ModeMarkdown)
 	if err != nil {
 		log.Print(err)
-		return context.Send(messages.InternalError)
+		return ctx.Send(messages.InternalError)
 	}
 
 	return nil
 }
 
-func (h *InfoHandler) handleMovieDetails(context telebot.Context, msgId string) error {
-	var watchedMovies []models.Movie
+func (h *InfoHandler) handleMovieDetails(ctx telebot.Context, msgId string) error {
+	ctxDb, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
 
-	if err := h.app.Database.Where("user_id = ?", context.Sender().ID).Find(&watchedMovies).Error; err != nil {
+	watchedMovies, err := h.app.Repository.Movies.GetUserMovies(ctxDb, ctx.Sender().ID)
+	if err != nil {
 		log.Printf("cant get all tv movies: %v", err.Error())
-		return context.Send(messages.InternalError)
+		return ctx.Send(messages.InternalError)
 	}
 
 	info := movieStats{}
@@ -96,7 +101,7 @@ func (h *InfoHandler) handleMovieDetails(context telebot.Context, msgId string) 
 	}
 
 	msgID, _ := strconv.Atoi(msgId)
-	msg := &telebot.Message{ID: msgID, Chat: context.Chat()}
+	msg := &telebot.Message{ID: msgID, Chat: ctx.Chat()}
 
 	formattedTime := formatDuration(info.totalTime)
 	text := fmt.Sprintf(`📺 *Movies - Total Info*
@@ -113,27 +118,29 @@ func (h *InfoHandler) handleMovieDetails(context telebot.Context, msgId string) 
 		info.totalTime/60,
 	)
 
-	_, err := context.Bot().Edit(msg, text, telebot.ModeMarkdown)
+	_, err = ctx.Bot().Edit(msg, text, telebot.ModeMarkdown)
 	if err != nil {
 		log.Print(err)
-		return context.Send(messages.InternalError)
+		return ctx.Send(messages.InternalError)
 	}
 
 	return nil
 }
 
-func (h *InfoHandler) handleFullDetails(context telebot.Context, data string) error {
-	var watchedMovies []models.Movie
-	var watchedShows []models.TVShows
+func (h *InfoHandler) handleFullDetails(ctx telebot.Context, data string) error {
+	ctxDb, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
 
-	if err := h.app.Database.Where("user_id = ?", context.Sender().ID).Find(&watchedMovies).Error; err != nil {
+	watchedMovies, err := h.app.Repository.Movies.GetUserMovies(ctxDb, ctx.Sender().ID)
+	if err != nil {
 		log.Printf("cant get all movies: %v", err.Error())
-		return context.Send(messages.InternalError)
+		return ctx.Send(messages.InternalError)
 	}
 
-	if err := h.app.Database.Where("user_id = ?", context.Sender().ID).Find(&watchedShows).Error; err != nil {
+	watchedShows, err := h.app.Repository.TVShows.GetUserTVShows(ctxDb, ctx.Sender().ID)
+	if err != nil {
 		log.Printf("cant get all tv shows: %v", err.Error())
-		return context.Send(messages.InternalError)
+		return ctx.Send(messages.InternalError)
 	}
 
 	movieInfo := movieStats{}
@@ -157,7 +164,7 @@ func (h *InfoHandler) handleFullDetails(context telebot.Context, data string) er
 
 	// Create the message
 	msgID, _ := strconv.Atoi(data)
-	msg := &telebot.Message{ID: msgID, Chat: context.Chat()}
+	msg := &telebot.Message{ID: msgID, Chat: ctx.Chat()}
 
 	text := fmt.Sprintf(`📺 *Full Info - Total Details*
 
@@ -191,27 +198,27 @@ func (h *InfoHandler) handleFullDetails(context telebot.Context, data string) er
 		totalTime/60,
 	)
 
-	_, err := context.Bot().Edit(msg, text, telebot.ModeMarkdown)
+	_, err = ctx.Bot().Edit(msg, text, telebot.ModeMarkdown)
 	if err != nil {
 		log.Print(err)
-		return context.Send(messages.InternalError)
+		return ctx.Send(messages.InternalError)
 	}
 
 	return nil
 }
 
-func (h *InfoHandler) InfoCallback(context telebot.Context) error {
-	callback := context.Callback()
+func (h *InfoHandler) InfoCallback(ctx telebot.Context) error {
+	callback := ctx.Callback()
 	trimmed := strings.TrimSpace(callback.Data)
 
 	if !strings.HasPrefix(trimmed, "info|") {
-		return context.Send(messages.InternalError)
+		return ctx.Send(messages.InternalError)
 	}
 
 	dataParts := strings.Split(trimmed, "|")
 	if len(dataParts) != 3 {
 		log.Printf("Received malformed callback data: %s", callback.Data)
-		return context.Respond(&telebot.CallbackResponse{Text: messages.MalformedData})
+		return ctx.Respond(&telebot.CallbackResponse{Text: messages.MalformedData})
 	}
 
 	action := dataParts[1]
@@ -219,20 +226,20 @@ func (h *InfoHandler) InfoCallback(context telebot.Context) error {
 
 	switch action {
 	case "movie_info":
-		return h.handleMovieDetails(context, data)
+		return h.handleMovieDetails(ctx, data)
 
 	case "tv_info":
-		return h.handleTVDetails(context, data)
+		return h.handleTVDetails(ctx, data)
 
 	case "full_info":
-		return h.handleFullDetails(context, data)
+		return h.handleFullDetails(ctx, data)
 
 	default:
-		return context.Respond(&telebot.CallbackResponse{Text: messages.UnknownAction})
+		return ctx.Respond(&telebot.CallbackResponse{Text: messages.UnknownAction})
 	}
 }
 
-func formatDuration(minutes int64) string {
+func formatDuration(minutes int32) string {
 	days := minutes / (24 * 60)
 	remainingMinutes := minutes % (24 * 60)
 	hours := remainingMinutes / 60

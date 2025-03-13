@@ -24,7 +24,7 @@ type Season struct {
 type Episode struct {
 	Id            int64  `json:"id"`
 	AirDate       string `json:"air_date"`
-	SeasonNumber  int64  `json:"season_number"`
-	EpisodeNumber int64  `json:"episode_number"`
-	Runtime       int64  `json:"runtime"`
+	SeasonNumber  int32  `json:"season_number"`
+	EpisodeNumber int32  `json:"episode_number"`
+	Runtime       int32  `json:"runtime"`
 }

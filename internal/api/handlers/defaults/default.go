@@ -3,7 +3,6 @@ package defaults
 import (
 	"context"
 	"fmt"
-	"github.com/erkinov-wtf/movie-manager-bot/internal/models"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/database"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/messages"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/utils"
@@ -54,30 +53,20 @@ func (h *DefaultHandler) Start(ctx telebot.Context) error {
 }
 
 func (h *DefaultHandler) handleStartCallback(ctx telebot.Context) error {
-	ctxDb, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	ctxDb, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	newUser := models.User{
-		Id:         ctx.Sender().ID,
-		FirstName:  &ctx.Sender().FirstName,
-		LastName:   &ctx.Sender().LastName,
-		Username:   &ctx.Sender().Username,
-		Language:   &ctx.Sender().LanguageCode,
-		TmdbApiKey: nil,
-	}
-
 	newUser := database.CreateUserParams{
-		FirstName:  ctx.Sender().ID,
-		LastName:   &ctx.Sender().FirstName,
-		Username:   &ctx.Sender().LastName,
-		Language:   ctx.Sender().Username,
-		TmdbApiKey: &ctx.Sender().LanguageCode,
+		TgID:      ctx.Sender().ID,
+		FirstName: &ctx.Sender().FirstName,
+		LastName:  &ctx.Sender().LastName,
+		Username:  &ctx.Sender().Username,
+		Language:  ctx.Sender().LanguageCode,
 	}
 
-	h.app.Repository.Users.CreateUser(ctxDb, newUser)
-
-	if err := h.app.Database.Create(&newUser).Error; err != nil {
-		log.Printf("cant create user: %v", err.Error())
+	err := h.app.Repository.Users.CreateUser(ctxDb, newUser)
+	if err != nil {
+		log.Printf("cant create user: %v\n", err.Error())
 		return ctx.Send(messages.InternalError)
 	}
 
@@ -129,9 +118,11 @@ func (h *DefaultHandler) HandleTextInput(ctx telebot.Context) error {
 		return ctx.Send(messages.InternalError)
 	}
 
-	if err := h.app.Database.Model(&models.User{}).
-		Where("id = ?", userId).
-		Update("tmdb_api_key", encrypted).Error; err != nil {
+	ctxDb, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	err = h.app.Repository.Users.UpdateUserTMDBKey(ctxDb, ctx.Sender().ID, encrypted)
+	if err != nil {
 		log.Print(err)
 		return ctx.Send(messages.InternalError)
 	}

@@ -1,6 +1,7 @@
 package watchlist
 
 import (
+	"context"
 	"fmt"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/models"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/tmdb/movie"
@@ -9,18 +10,19 @@ import (
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/paginators"
 	"gopkg.in/telebot.v3"
 	"log"
+	"time"
 
 	"strconv"
 	"strings"
 )
 
-func (h *WatchlistHandler) WatchlistInfo(context telebot.Context) error {
+func (h *WatchlistHandler) WatchlistInfo(ctx telebot.Context) error {
 	log.Print(messages.WatchlistCommand)
 
-	msg, err := context.Bot().Send(context.Chat(), messages.Loading)
+	msg, err := ctx.Bot().Send(ctx.Chat(), messages.Loading)
 	if err != nil {
 		log.Print(err)
-		return context.Send(messages.InternalError)
+		return ctx.Send(messages.InternalError)
 	}
 
 	btn := &telebot.ReplyMarkup{}
@@ -32,131 +34,137 @@ func (h *WatchlistHandler) WatchlistInfo(context telebot.Context) error {
 
 	btn.Inline(btnRows...)
 
-	_, err = context.Bot().Edit(msg, messages.WatchlistSelectType, btn)
+	_, err = ctx.Bot().Edit(msg, messages.WatchlistSelectType, btn)
 	if err != nil {
 		log.Print(err)
-		return context.Send(messages.InternalError)
+		return ctx.Send(messages.InternalError)
 	}
 
 	return nil
 }
 
-func (h *WatchlistHandler) handleTVWatchlist(context telebot.Context, msgId string) error {
+func (h *WatchlistHandler) handleTVWatchlist(ctx telebot.Context, msgId string) error {
 	msgID, _ := strconv.Atoi(msgId)
-	msg := &telebot.Message{ID: msgID, Chat: context.Chat()}
+	msg := &telebot.Message{ID: msgID, Chat: ctx.Chat()}
 
-	var watchlist []models.Watchlist
+	ctxDb, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
 
-	if err := h.app.Database.Where("user_id = ? AND type = ?", context.Sender().ID, models.TVShowType).Find(&watchlist).Error; err != nil {
+	watchlists, err := h.app.Repository.Watchlists.GetUserWatchlistsWithType(ctxDb, ctx.Sender().ID, string(models.TVShowType))
+	if err != nil {
 		log.Print(err)
-		return context.Send(messages.InternalError)
+		return ctx.Send(messages.InternalError)
 	}
 
-	if len(watchlist) == 0 {
+	if len(watchlists) == 0 {
 		log.Print("No records found")
-		_, err := context.Bot().Edit(msg, messages.NoWatchlistData, telebot.ModeMarkdown)
+		_, err = ctx.Bot().Edit(msg, messages.NoWatchlistData, telebot.ModeMarkdown)
 		if err != nil {
 			log.Print(err)
-			return context.Send(messages.InternalError)
+			return ctx.Send(messages.InternalError)
 		}
 		return nil
 	}
 
 	currentPage := 1
-	totalItems := len(watchlist)
+	totalItems := len(watchlists)
 	totalPages := (totalItems + itemsPerPage - 1) / itemsPerPage
 
-	paginatedWatchlist := paginators.PaginateWatchlist(watchlist, currentPage)
-	response, btn := paginators.GenerateWatchlistResponse(&paginatedWatchlist, currentPage, totalPages, totalItems, string(models.TVShowType))
+	paginatedWatchlist := paginators.PaginateWatchlistWithType(watchlists, currentPage)
+	response, btn := paginators.GenerateWatchlistWithTypeResponse(&paginatedWatchlist, currentPage, totalPages, totalItems, string(models.TVShowType))
 
-	_, err := context.Bot().Edit(msg, response, btn, telebot.ModeMarkdown)
+	_, err = ctx.Bot().Edit(msg, response, btn, telebot.ModeMarkdown)
 	if err != nil {
 		log.Print(err)
-		return context.Send(messages.InternalError)
+		return ctx.Send(messages.InternalError)
 	}
 
 	return nil
 }
 
-func (h *WatchlistHandler) handleMovieWatchlist(context telebot.Context, msgId string) error {
+func (h *WatchlistHandler) handleMovieWatchlist(ctx telebot.Context, msgId string) error {
 	msgID, _ := strconv.Atoi(msgId)
-	msg := &telebot.Message{ID: msgID, Chat: context.Chat()}
+	msg := &telebot.Message{ID: msgID, Chat: ctx.Chat()}
 
-	var watchlist []models.Watchlist
+	ctxDb, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
 
-	if err := h.app.Database.Where("user_id = ? AND type = ?", context.Sender().ID, models.MovieType).Find(&watchlist).Error; err != nil {
+	watchlists, err := h.app.Repository.Watchlists.GetUserWatchlistsWithType(ctxDb, ctx.Sender().ID, string(models.MovieType))
+	if err != nil {
 		log.Print(err)
-		return context.Send(messages.InternalError)
+		return ctx.Send(messages.InternalError)
 	}
 
-	if len(watchlist) == 0 {
+	if len(watchlists) == 0 {
 		log.Print("No records found")
-		_, err := context.Bot().Edit(msg, messages.NoWatchlistData, telebot.ModeMarkdown)
+		_, err = ctx.Bot().Edit(msg, messages.NoWatchlistData, telebot.ModeMarkdown)
 		if err != nil {
 			log.Print(err)
-			return context.Send(messages.InternalError)
+			return ctx.Send(messages.InternalError)
 		}
 		return nil
 	}
 
 	currentPage := 1
-	totalItems := len(watchlist)
+	totalItems := len(watchlists)
 	totalPages := (totalItems + itemsPerPage - 1) / itemsPerPage
 
-	paginatedWatchlist := paginators.PaginateWatchlist(watchlist, currentPage)
-	response, btn := paginators.GenerateWatchlistResponse(&paginatedWatchlist, currentPage, totalPages, totalItems, string(models.MovieType))
+	paginatedWatchlist := paginators.PaginateWatchlistWithType(watchlists, currentPage)
+	response, btn := paginators.GenerateWatchlistWithTypeResponse(&paginatedWatchlist, currentPage, totalPages, totalItems, string(models.MovieType))
 
-	_, err := context.Bot().Edit(msg, response, btn, telebot.ModeMarkdown)
+	_, err = ctx.Bot().Edit(msg, response, btn, telebot.ModeMarkdown)
 	if err != nil {
 		log.Print(err)
-		return context.Send(messages.InternalError)
+		return ctx.Send(messages.InternalError)
 	}
 
 	return nil
 }
 
-func (h *WatchlistHandler) handleFullWatchlist(context telebot.Context, msgId string) error {
+func (h *WatchlistHandler) handleFullWatchlist(ctx telebot.Context, msgId string) error {
 	msgID, _ := strconv.Atoi(msgId)
-	msg := &telebot.Message{ID: msgID, Chat: context.Chat()}
+	msg := &telebot.Message{ID: msgID, Chat: ctx.Chat()}
 
-	var watchlist []models.Watchlist
+	ctxDb, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
 
-	if err := h.app.Database.Where("user_id = ?", context.Sender().ID).Find(&watchlist).Error; err != nil {
+	watchlists, err := h.app.Repository.Watchlists.GetUserWatchlists(ctxDb, ctx.Sender().ID)
+	if err != nil {
 		log.Print(err)
-		return context.Send(messages.InternalError)
+		return ctx.Send(messages.InternalError)
 	}
 
-	if len(watchlist) == 0 {
+	if len(watchlists) == 0 {
 		log.Print("No records found")
-		_, err := context.Bot().Edit(msg, messages.NoWatchlistData, telebot.ModeMarkdown)
+		_, err = ctx.Bot().Edit(msg, messages.NoWatchlistData, telebot.ModeMarkdown)
 		if err != nil {
 			log.Print(err)
-			return context.Send(messages.InternalError)
+			return ctx.Send(messages.InternalError)
 		}
 		return nil
 	}
 
 	currentPage := 1
-	totalItems := len(watchlist)
+	totalItems := len(watchlists)
 	totalPages := (totalItems + itemsPerPage - 1) / itemsPerPage
 
-	paginatedWatchlist := paginators.PaginateWatchlist(watchlist, currentPage)
+	paginatedWatchlist := paginators.PaginateWatchlist(watchlists, currentPage)
 	response, btn := paginators.GenerateWatchlistResponse(&paginatedWatchlist, currentPage, totalPages, totalItems, string(models.AllType))
 
-	_, err := context.Bot().Edit(msg, response, btn, telebot.ModeMarkdown)
+	_, err = ctx.Bot().Edit(msg, response, btn, telebot.ModeMarkdown)
 	if err != nil {
 		log.Print(err)
-		return context.Send(messages.InternalError)
+		return ctx.Send(messages.InternalError)
 	}
 
 	return nil
 }
 
-func (h *WatchlistHandler) handleWatchlistInfo(context telebot.Context, data string) error {
+func (h *WatchlistHandler) handleWatchlistInfo(ctx telebot.Context, data string) error {
 	dataParts := strings.Split(data, "-")
 	if len(dataParts) < 2 {
 		log.Printf("Received malformed callback data for waitlist: %s", data)
-		return context.Respond(&telebot.CallbackResponse{Text: messages.MalformedData})
+		return ctx.Respond(&telebot.CallbackResponse{Text: messages.MalformedData})
 	}
 
 	movieType := dataParts[0]
@@ -165,91 +173,110 @@ func (h *WatchlistHandler) handleWatchlistInfo(context telebot.Context, data str
 	parsedId, err := strconv.Atoi(movieId)
 	if err != nil {
 		log.Print(err)
-		return context.Send(messages.InternalError)
+		return ctx.Send(messages.InternalError)
 	}
 
 	if movieType == string(models.MovieType) {
-		movieData, err := movie.GetMovie(h.app, parsedId, context.Sender().ID)
+		movieData, err := movie.GetMovie(h.app, parsedId, ctx.Sender().ID)
 		if err != nil {
 			log.Print(err)
-			return context.Send(messages.InternalError)
+			return ctx.Send(messages.InternalError)
 		}
 
-		err = movie.ShowMovie(h.app, context, movieData, false)
+		err = movie.ShowMovie(h.app, ctx, movieData, false)
 		if err != nil {
 			log.Print(err)
-			return context.Send(messages.InternalError)
+			return ctx.Send(messages.InternalError)
 		}
 
-		return context.Respond(&telebot.CallbackResponse{Text: messages.MovieSelected})
+		return ctx.Respond(&telebot.CallbackResponse{Text: messages.MovieSelected})
 	} else {
-		tvData, err := tv.GetTV(h.app, parsedId, context.Sender().ID)
+		tvData, err := tv.GetTV(h.app, parsedId, ctx.Sender().ID)
 		if err != nil {
 			log.Print(err)
 			return err
 		}
 
-		err = tv.ShowTV(h.app, context, tvData, false)
+		err = tv.ShowTV(h.app, ctx, tvData, false)
 		if err != nil {
 			log.Print(err)
 			return err
 		}
 
-		return context.Respond(&telebot.CallbackResponse{Text: messages.TVShowSelected})
+		return ctx.Respond(&telebot.CallbackResponse{Text: messages.TVShowSelected})
 	}
 }
 
-func (h *WatchlistHandler) handleBackToPagination(context telebot.Context, showType string) error {
-	currentPage := 1
+func (h *WatchlistHandler) handleBackToPagination(ctx telebot.Context, showType string) error {
+	const (
+		timeout     = 2 * time.Second
+		currentPage = 1
+	)
 
-	var watchlist []models.Watchlist
-	if showType == string(models.AllType) {
-		if err := h.app.Database.Where("user_id = ?", context.Sender().ID).Find(&watchlist).Error; err != nil {
-			log.Print(err)
-			return context.Send(messages.InternalError)
-		}
-	} else {
-		if err := h.app.Database.Where("user_id = ? AND type = ?", context.Sender().ID, showType).Find(&watchlist).Error; err != nil {
-			log.Print(err)
-			return context.Send(messages.InternalError)
-		}
+	ctxDb, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	// Delete the movie/show details message before any database operations
+	if err := ctx.Delete(); err != nil {
+		log.Printf("Failed to delete message: %v", err)
+		return ctx.Send(messages.InternalError)
 	}
 
-	totalItems := len(watchlist)
-	totalPages := (totalItems + itemsPerPage - 1) / itemsPerPage
+	var response string
+	var btn *telebot.ReplyMarkup
 
-	paginatedWatchlist := paginators.PaginateWatchlist(watchlist, currentPage)
-	response, btn := paginators.GenerateWatchlistResponse(&paginatedWatchlist, currentPage, totalPages, totalItems, showType)
+	if showType == string(models.AllType) {
+		// Handle all type watchlists
+		watchlists, err := h.app.Repository.Watchlists.GetUserWatchlists(ctxDb, ctx.Sender().ID)
+		if err != nil {
+			log.Print(err)
+			return ctx.Send(messages.InternalError)
+		}
 
-	// Delete the movie/show details message
-	if err := context.Delete(); err != nil {
-		log.Printf("Failed to delete message: %v", err)
-		return context.Send(messages.InternalError)
+		totalItems := len(watchlists)
+		totalPages := (totalItems + itemsPerPage - 1) / itemsPerPage
+
+		// Generate pagination and response
+		paginatedWatchlist := paginators.PaginateWatchlist(watchlists, currentPage)
+		response, btn = paginators.GenerateWatchlistResponse(&paginatedWatchlist, currentPage, totalPages, totalItems, showType)
+	} else {
+		// Handle type-specific watchlists
+		watchlists, err := h.app.Repository.Watchlists.GetUserWatchlistsWithType(ctxDb, ctx.Sender().ID, showType)
+		if err != nil {
+			log.Print(err)
+			return ctx.Send(messages.InternalError)
+		}
+
+		totalItems := len(watchlists)
+		totalPages := (totalItems + itemsPerPage - 1) / itemsPerPage
+
+		// Generate pagination and response
+		paginatedWatchlist := paginators.PaginateWatchlistWithType(watchlists, currentPage)
+		response, btn = paginators.GenerateWatchlistWithTypeResponse(&paginatedWatchlist, currentPage, totalPages, totalItems, showType)
 	}
 
 	// Send new message with watchlist
-	_, err := context.Bot().Send(context.Chat(), response, btn, telebot.ModeMarkdown)
-	if err != nil {
+	if _, err := ctx.Bot().Send(ctx.Chat(), response, btn, telebot.ModeMarkdown); err != nil {
 		log.Printf("Failed to send watchlist: %v", err)
-		return context.Send(messages.InternalError)
+		return ctx.Send(messages.InternalError)
 	}
 
 	return nil
 }
 
-func (h *WatchlistHandler) WatchlistCallback(context telebot.Context) error {
-	callback := context.Callback()
+func (h *WatchlistHandler) WatchlistCallback(ctx telebot.Context) error {
+	callback := ctx.Callback()
 	trimmed := strings.TrimSpace(callback.Data)
 	log.Printf("Callback data: %s", trimmed)
 
 	if !strings.HasPrefix(trimmed, "watchlist|") {
-		return context.Send(messages.InternalError)
+		return ctx.Send(messages.InternalError)
 	}
 
 	dataParts := strings.Split(trimmed, "|")
 	if len(dataParts) < 3 {
 		log.Printf("Received malformed callback data: %s", callback.Data)
-		return context.Respond(&telebot.CallbackResponse{Text: messages.MalformedData})
+		return ctx.Respond(&telebot.CallbackResponse{Text: messages.MalformedData})
 	}
 
 	action := dataParts[1]
@@ -257,72 +284,103 @@ func (h *WatchlistHandler) WatchlistCallback(context telebot.Context) error {
 
 	switch action {
 	case "tv":
-		return h.handleTVWatchlist(context, data)
+		return h.handleTVWatchlist(ctx, data)
 
 	case "movie":
-		return h.handleMovieWatchlist(context, data)
+		return h.handleMovieWatchlist(ctx, data)
 
 	case "full":
-		return h.handleFullWatchlist(context, data)
+		return h.handleFullWatchlist(ctx, data)
 
 	case "info":
-		return h.handleWatchlistInfo(context, data)
+		return h.handleWatchlistInfo(ctx, data)
 
 	case "next", "prev":
 		paginationData := strings.Split(data, "-")
 		if len(paginationData) != 2 {
 			log.Printf("Received malformed callback data for watchlist pagination: %s", data)
-			return context.Respond(&telebot.CallbackResponse{Text: messages.MalformedData})
+			return ctx.Respond(&telebot.CallbackResponse{Text: messages.MalformedData})
 		}
 
 		watchlistType := paginationData[0]
 		currentPage, err := strconv.Atoi(paginationData[1])
 		if err != nil {
 			log.Printf("Invalid page number: %v", err)
-			return context.Respond(&telebot.CallbackResponse{Text: messages.InvalidPageNumber})
+			return ctx.Respond(&telebot.CallbackResponse{Text: messages.InvalidPageNumber})
 		}
 
-		var watchlist []models.Watchlist
-		// Determine watchlist type and fetch data
+		// Create context with timeout for database operations
+		ctxDb, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+
+		var totalItems int
+		var totalPages int
+		var response string
+		var btn *telebot.ReplyMarkup
+
+		// Handle pagination based on watchlist type
 		if watchlistType == string(models.AllType) {
-			if err = h.app.Database.Where("user_id = ?", context.Sender().ID).Find(&watchlist).Error; err != nil {
-				log.Print(err)
-				return context.Send(messages.InternalError)
+			// Fetch all watchlists using repository
+			watchlists, err := h.app.Repository.Watchlists.GetUserWatchlists(ctxDb, ctx.Sender().ID)
+			if err != nil {
+				log.Printf("Failed to fetch watchlists: %v", err)
+				return ctx.Send(messages.InternalError)
 			}
+
+			// Calculate pagination metrics
+			totalItems = len(watchlists)
+			totalPages = (totalItems + itemsPerPage - 1) / itemsPerPage
+
+			// Update current page based on action
+			if action == "next" && currentPage < totalPages {
+				currentPage++
+			} else if action == "prev" && currentPage > 1 {
+				currentPage--
+			}
+
+			// Generate paginated response
+			paginatedWatchlist := paginators.PaginateWatchlist(watchlists, currentPage)
+			response, btn = paginators.GenerateWatchlistResponse(&paginatedWatchlist, currentPage, totalPages, totalItems, watchlistType)
 		} else {
-			if err = h.app.Database.Where("user_id = ? AND type = ?", context.Sender().ID, watchlistType).Find(&watchlist).Error; err != nil {
-				log.Print(err)
-				return context.Send(messages.InternalError)
+			// Fetch type-specific watchlists using repository
+			watchlists, err := h.app.Repository.Watchlists.GetUserWatchlistsWithType(ctxDb, ctx.Sender().ID, watchlistType)
+			if err != nil {
+				log.Printf("Failed to fetch watchlists with type %s: %v", watchlistType, err)
+				return ctx.Send(messages.InternalError)
 			}
+
+			// Calculate pagination metrics
+			totalItems = len(watchlists)
+			totalPages = (totalItems + itemsPerPage - 1) / itemsPerPage
+
+			// Update current page based on action
+			if action == "next" && currentPage < totalPages {
+				currentPage++
+			} else if action == "prev" && currentPage > 1 {
+				currentPage--
+			}
+
+			// Generate paginated response
+			paginatedWatchlist := paginators.PaginateWatchlistWithType(watchlists, currentPage)
+			response, btn = paginators.GenerateWatchlistWithTypeResponse(&paginatedWatchlist, currentPage, totalPages, totalItems, watchlistType)
 		}
 
-		totalItems := len(watchlist)
-		totalPages := (totalItems + itemsPerPage - 1) / itemsPerPage
-
-		if action == "next" && currentPage < totalPages {
-			currentPage++
-		} else if action == "prev" && currentPage > 1 {
-			currentPage--
-		}
-
-		paginatedWatchlist := paginators.PaginateWatchlist(watchlist, currentPage)
-		response, btn := paginators.GenerateWatchlistResponse(&paginatedWatchlist, currentPage, totalPages, totalItems, watchlistType)
-
-		_, err = context.Bot().Edit(context.Message(), response, btn, telebot.ModeMarkdown)
+		// Update the message with new pagination
+		_, err = ctx.Bot().Edit(ctx.Message(), response, btn, telebot.ModeMarkdown)
 		if err != nil {
 			log.Printf("Edit error: %v", err)
 			if strings.Contains(err.Error(), "message is not modified") {
-				return context.Respond(&telebot.CallbackResponse{Text: messages.NoChanges})
+				return ctx.Respond(&telebot.CallbackResponse{Text: messages.NoChanges})
 			}
-			return context.Send(messages.InternalError)
+			return ctx.Send(messages.InternalError)
 		}
 
-		return context.Respond(&telebot.CallbackResponse{Text: messages.PageUpdated})
+		return ctx.Respond(&telebot.CallbackResponse{Text: messages.PageUpdated})
 
 	case "back_to_pagination":
-		return h.handleBackToPagination(context, data)
+		return h.handleBackToPagination(ctx, data)
 
 	default:
-		return context.Respond(&telebot.CallbackResponse{Text: messages.UnknownAction})
+		return ctx.Respond(&telebot.CallbackResponse{Text: messages.UnknownAction})
 	}
 }
