@@ -2,6 +2,7 @@ package tv
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	appCfg "github.com/erkinov-wtf/movie-manager-bot/internal/config/app"
@@ -12,6 +13,7 @@ import (
 	"gopkg.in/telebot.v3"
 	"io"
 	"log"
+	"time"
 
 	"net/http"
 )
@@ -62,12 +64,12 @@ func GetSeason(app *appCfg.App, tvId, seasonNumber int, userId int64) (*Season, 
 	return &result, nil
 }
 
-func ShowTV(app *appCfg.App, context telebot.Context, tvData *TV, isTVShow bool) error {
+func ShowTV(app *appCfg.App, ctx telebot.Context, tvData *TV, isTVShow bool) error {
 	// Retrieve TV poster image
 	imgBuffer, err := image.GetImage(app, tvData.PosterPath)
 	if err != nil {
 		log.Printf("Error retrieving image: %v", err)
-		return context.Send(messages.InternalError)
+		return ctx.Send(messages.InternalError)
 	}
 
 	// Prepare TV details caption
@@ -88,20 +90,22 @@ func ShowTV(app *appCfg.App, context telebot.Context, tvData *TV, isTVShow bool)
 		tvData.Episodes,
 	)
 
-	// Check if the tv is already in the user's watchlist
-	var watchlist []models.Watchlist
-	if err = app.Database.Where("show_api_id = ? AND user_id = ?", tvData.Id, context.Sender().ID).Find(&watchlist).Error; err != nil {
-		log.Printf("Database error: %v", err)
-		return context.Send(messages.WatchlistCheckError)
-	}
-
-	replyMarkup := generateReplyMarkup(tvData.Id, len(watchlist) > 0, isTVShow)
-
-	// Delete the original context message
-	if err = context.Delete(); err != nil {
+	// Delete the original ctx message
+	if err = ctx.Delete(); err != nil {
 		log.Printf("Failed to delete original message: %v", err)
-		return context.Send(messages.InternalError)
+		return ctx.Send(messages.InternalError)
 	}
+
+	ctxDb, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	// Check if the tv is already in the user's watchlist
+	tvShowExists, err := app.Repository.Watchlists.WatchlistExists(ctxDb, tvData.Id, ctx.Sender().ID, string(models.MovieType))
+	if err != nil {
+		return err
+	}
+
+	replyMarkup := generateReplyMarkup(tvData.Id, tvShowExists, isTVShow)
 
 	// Send the TV details with poster and buttons
 	imageFile := &telebot.Photo{
@@ -109,10 +113,10 @@ func ShowTV(app *appCfg.App, context telebot.Context, tvData *TV, isTVShow bool)
 		Caption: caption,
 	}
 
-	_, err = context.Bot().Send(context.Chat(), imageFile, replyMarkup, telebot.ModeMarkdown)
+	_, err = ctx.Bot().Send(ctx.Chat(), imageFile, replyMarkup, telebot.ModeMarkdown)
 	if err != nil {
 		log.Printf("Failed to send TV details: %v", err)
-		return context.Send(messages.InternalError)
+		return ctx.Send(messages.InternalError)
 	}
 
 	log.Printf("TV details sent successfully for TV Id: %d", tvData.Id)

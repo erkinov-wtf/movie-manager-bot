@@ -7,15 +7,15 @@ type TV struct {
 	Status       string  `json:"status"`
 	Adult        bool    `json:"adult"`
 	Popularity   float32 `json:"popularity"`
-	Seasons      int64   `json:"number_of_seasons"`
-	Episodes     int64   `json:"number_of_episodes"`
+	Seasons      int32   `json:"number_of_seasons"`
+	Episodes     int32   `json:"number_of_episodes"`
 	BackdropPath string  `json:"backdrop_path"`
 	PosterPath   string  `json:"poster_path"`
 }
 
 type Season struct {
 	Id           int64     `json:"id"`
-	SeasonNumber int64     `json:"season_number"`
+	SeasonNumber int32     `json:"season_number"`
 	Name         string    `json:"name"`
 	Overview     string    `json:"overview"`
 	Episodes     []Episode `json:"episodes"`

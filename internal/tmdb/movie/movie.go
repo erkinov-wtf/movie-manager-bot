@@ -2,6 +2,7 @@ package movie
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	appCfg "github.com/erkinov-wtf/movie-manager-bot/internal/config/app"
@@ -12,6 +13,7 @@ import (
 	"gopkg.in/telebot.v3"
 	"io"
 	"log"
+	"time"
 
 	"net/http"
 )
@@ -41,12 +43,12 @@ func GetMovie(app *appCfg.App, movieId int, userId int64) (*Movie, error) {
 }
 
 // ShowMovie displays movie details along with an image and interactive buttons.
-func ShowMovie(app *appCfg.App, context telebot.Context, movieData *Movie, isMovie bool) error {
+func ShowMovie(app *appCfg.App, ctx telebot.Context, movieData *Movie, isMovie bool) error {
 	// Retrieve movie poster image
 	imgBuffer, err := image.GetImage(app, movieData.PosterPath)
 	if err != nil {
 		log.Printf("Error retrieving image: %v", err)
-		return context.Send(messages.InternalError)
+		return ctx.Send(messages.InternalError)
 	}
 
 	// Prepare movie details caption
@@ -69,20 +71,22 @@ func ShowMovie(app *appCfg.App, context telebot.Context, movieData *Movie, isMov
 		movieData.Status,
 	)
 
-	// Check if the movie is already in the user's watchlist
-	var watchlist []models.Watchlist
-	if err = app.Database.Where("show_api_id = ? AND user_id = ?", movieData.ID, context.Sender().ID).Find(&watchlist).Error; err != nil {
-		log.Printf("Database error: %v", err)
-		return context.Send(messages.WatchlistCheckError)
-	}
-
-	replyMarkup := generateReplyMarkup(movieData.ID, len(watchlist) > 0, isMovie)
-
-	// Delete the original context message
-	if err = context.Delete(); err != nil {
+	// Delete the original ctx message
+	if err = ctx.Delete(); err != nil {
 		log.Printf("Failed to delete original message: %v", err)
-		return context.Send(messages.InternalError)
+		return ctx.Send(messages.InternalError)
 	}
+
+	ctxDb, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	// Check if the movie is already in the user's watchlist
+	movieExists, err := app.Repository.Watchlists.WatchlistExists(ctxDb, movieData.ID, ctx.Sender().ID, string(models.MovieType))
+	if err != nil {
+		return err
+	}
+
+	replyMarkup := generateReplyMarkup(movieData.ID, movieExists, isMovie)
 
 	// Send the movie details with poster and buttons
 	imageFile := &telebot.Photo{
@@ -90,10 +94,10 @@ func ShowMovie(app *appCfg.App, context telebot.Context, movieData *Movie, isMov
 		Caption: caption,
 	}
 
-	_, err = context.Bot().Send(context.Chat(), imageFile, replyMarkup, telebot.ModeMarkdown)
+	_, err = ctx.Bot().Send(ctx.Chat(), imageFile, replyMarkup, telebot.ModeMarkdown)
 	if err != nil {
 		log.Printf("Failed to send movie details: %v", err)
-		return context.Send(messages.InternalError)
+		return ctx.Send(messages.InternalError)
 	}
 
 	log.Printf("Movie details sent successfully for movie Id: %d", movieData.ID)
