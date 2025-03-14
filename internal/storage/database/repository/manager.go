@@ -4,12 +4,9 @@ import (
 	"context"
 	"fmt"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/config"
-	"github.com/erkinov-wtf/movie-manager-bot/internal/models"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/database"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
 	"log"
 	"time"
 )
@@ -36,33 +33,6 @@ type ReposTx struct {
 	Watchlists WatchlistRepositoryInterface
 }
 
-func MustLoadDb(config *config.Config) *gorm.DB {
-	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s",
-		config.Database.Host,
-		config.Database.User,
-		config.Database.Password,
-		config.Database.Name,
-		config.Database.Port,
-	)
-
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-
-	if err != nil {
-		panic(fmt.Sprintf("Failed to connect to database: %v", err))
-	}
-
-	log.Print("DB connected successfully")
-
-	err = db.AutoMigrate(&models.Movie{}, &models.TVShows{}, &models.User{}, &models.Watchlist{})
-	if err != nil {
-		panic(fmt.Sprintf("Failed to migrate models: %v", err))
-	}
-
-	log.Print("Models migrated successfully")
-
-	return db
-}
-
 // connectSqlcWithPool connects to the database and returns a SQLC Queries instance with the underlying pool
 func connectSqlcWithPool(config *config.Config, ctx context.Context) (*Manager, error) {
 	connString := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
@@ -78,11 +48,12 @@ func connectSqlcWithPool(config *config.Config, ctx context.Context) (*Manager, 
 		return nil, fmt.Errorf("unable to parse pool config: %v", err)
 	}
 
-	poolConfig.MaxConns = 10
-	poolConfig.MinConns = 2
+	poolConfig.MaxConns = 20
+	poolConfig.MinConns = 5
 	poolConfig.MaxConnLifetime = time.Hour
 	poolConfig.MaxConnIdleTime = 30 * time.Minute
 	poolConfig.HealthCheckPeriod = time.Minute
+	poolConfig.ConnConfig.ConnectTimeout = 5 * time.Second
 
 	// Connect to the database with a timeout
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, 10*time.Second)

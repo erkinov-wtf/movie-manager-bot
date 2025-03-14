@@ -183,16 +183,21 @@ func (c *UserCacheData) getTokenDb(userId int64, isTokenWaiting bool) string {
 		return ""
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	apiTokenDb, err := c.db.Users.GetUserTMDBKey(ctx, userId)
 	if err != nil {
-		log.Println(err)
+		log.Printf("Error getting token for user %d: %v", userId, err)
 		return ""
 	}
 
-	decryptedToken, err := c.encryptor.Decrypt(apiTokenDb)
+	if apiTokenDb == nil {
+		log.Printf("TMDB API key not set for user %d", userId)
+		return ""
+	}
+
+	decryptedToken, err := c.encryptor.Decrypt(*apiTokenDb)
 	if err != nil {
 		log.Printf("error decrypting token: %v", err)
 		return ""

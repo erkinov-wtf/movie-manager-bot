@@ -87,7 +87,7 @@ func (h *DefaultHandler) GetToken(ctx telebot.Context) error {
 }
 
 func (h *DefaultHandler) HandleReplySearch(ctx telebot.Context) error {
-	_, uc := h.app.Cache.UserCache.Get(ctx.Sender().ID)
+	_, uc := h.app.Cache.UserCache.Fetch(ctx.Sender().ID)
 
 	if uc.SearchState.IsTVShowSearch {
 		return h.handleTVShowSearch(ctx)

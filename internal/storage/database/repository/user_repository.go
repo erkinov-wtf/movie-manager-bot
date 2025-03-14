@@ -12,7 +12,7 @@ type UserRepositoryInterface interface {
 	UserExists(ctx context.Context, id int64) (bool, error)
 	CreateUser(ctx context.Context, params database.CreateUserParams) error
 	UpdateUserTMDBKey(ctx context.Context, id int64, tmdbAPIKey string) error
-	GetUserTMDBKey(ctx context.Context, id int64) (string, error)
+	GetUserTMDBKey(ctx context.Context, id int64) (*string, error)
 }
 
 type UserRepository struct {
@@ -48,13 +48,13 @@ func (r *UserRepository) UpdateUserTMDBKey(ctx context.Context, id int64, tmdbAP
 	})
 }
 
-func (r *UserRepository) GetUserTMDBKey(ctx context.Context, id int64) (string, error) {
+func (r *UserRepository) GetUserTMDBKey(ctx context.Context, id int64) (*string, error) {
 	key, err := r.query.GetUserTMDBKey(ctx, id)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	if *key != "" {
-		return "", errors.New("TMDB API key not set")
+	if key == nil {
+		return nil, errors.New("TMDB API key not set")
 	}
-	return *key, nil
+	return key, nil
 }
