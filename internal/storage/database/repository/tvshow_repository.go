@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/database"
+	"strings"
 )
 
 type TVShowRepositoryInterface interface {
@@ -30,10 +31,16 @@ func (r *TVShowRepository) GetUserTVShows(ctx context.Context, userID int64) ([]
 }
 
 func (r *TVShowRepository) GetWatchedSeasons(ctx context.Context, apiID int64, userID int64) (int32, error) {
-	return r.q.GetWatchedSeasons(ctx, database.GetWatchedSeasonsParams{
+	seasons, err := r.q.GetWatchedSeasons(ctx, database.GetWatchedSeasonsParams{
 		ApiID:  apiID,
 		UserID: userID,
 	})
+
+	if err != nil && strings.Contains(err.Error(), "no rows in result set") {
+		return 0, nil
+	}
+
+	return seasons, err
 }
 
 func (r *TVShowRepository) TVShowExists(ctx context.Context, apiID int64, userID int64) (bool, error) {

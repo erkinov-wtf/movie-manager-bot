@@ -219,7 +219,7 @@ func (h *WatchlistHandler) handleBackToPagination(ctx telebot.Context, showType 
 	// Delete the movie/show details message before any database operations
 	if err := ctx.Delete(); err != nil {
 		log.Printf("Failed to delete message: %v", err)
-		return ctx.Send(messages.InternalError)
+		return ctx.Send(messages.WatchlistCheckError)
 	}
 
 	var response string
@@ -230,7 +230,7 @@ func (h *WatchlistHandler) handleBackToPagination(ctx telebot.Context, showType 
 		watchlists, err := h.app.Repository.Watchlists.GetUserWatchlists(ctxDb, ctx.Sender().ID)
 		if err != nil {
 			log.Print(err)
-			return ctx.Send(messages.InternalError)
+			return ctx.Send(messages.WatchlistCheckError)
 		}
 
 		totalItems := len(watchlists)
@@ -244,7 +244,7 @@ func (h *WatchlistHandler) handleBackToPagination(ctx telebot.Context, showType 
 		watchlists, err := h.app.Repository.Watchlists.GetUserWatchlistsWithType(ctxDb, ctx.Sender().ID, showType)
 		if err != nil {
 			log.Print(err)
-			return ctx.Send(messages.InternalError)
+			return ctx.Send(messages.WatchlistCheckError)
 		}
 
 		totalItems := len(watchlists)
@@ -258,7 +258,7 @@ func (h *WatchlistHandler) handleBackToPagination(ctx telebot.Context, showType 
 	// Send new message with watchlist
 	if _, err := ctx.Bot().Send(ctx.Chat(), response, btn, telebot.ModeMarkdown); err != nil {
 		log.Printf("Failed to send watchlist: %v", err)
-		return ctx.Send(messages.InternalError)
+		return ctx.Send(messages.WatchlistCheckError)
 	}
 
 	return nil
@@ -324,7 +324,7 @@ func (h *WatchlistHandler) WatchlistCallback(ctx telebot.Context) error {
 			watchlists, err := h.app.Repository.Watchlists.GetUserWatchlists(ctxDb, ctx.Sender().ID)
 			if err != nil {
 				log.Printf("Failed to fetch watchlists: %v", err)
-				return ctx.Send(messages.InternalError)
+				return ctx.Send(messages.WatchlistCheckError)
 			}
 
 			// Calculate pagination metrics
@@ -346,7 +346,7 @@ func (h *WatchlistHandler) WatchlistCallback(ctx telebot.Context) error {
 			watchlists, err := h.app.Repository.Watchlists.GetUserWatchlistsWithType(ctxDb, ctx.Sender().ID, watchlistType)
 			if err != nil {
 				log.Printf("Failed to fetch watchlists with type %s: %v", watchlistType, err)
-				return ctx.Send(messages.InternalError)
+				return ctx.Send(messages.WatchlistCheckError)
 			}
 
 			// Calculate pagination metrics
