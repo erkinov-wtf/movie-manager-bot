@@ -38,9 +38,9 @@ COPY --from=builder /app/migrations /app/migrations
 
 # Creating a shell script to run migrations and start the app
 RUN echo '#!/bin/sh\n\
+set -e\n\
 /usr/local/bin/atlas migrate hash\n\
 /usr/local/bin/atlas migrate apply --env prod --url "postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?search_path=public&sslmode=disable"\n\
 /app/main' > /app/start.sh
 RUN chmod +x /app/start.sh
-
 CMD ["/app/start.sh"]
