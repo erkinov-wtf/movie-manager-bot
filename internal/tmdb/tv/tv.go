@@ -100,7 +100,7 @@ func ShowTV(app *appCfg.App, ctx telebot.Context, tvData *TV, isTVShow bool) err
 	defer cancel()
 
 	// Check if the tv is already in the user's watchlist
-	tvShowExists, err := app.Repository.Watchlists.WatchlistExists(ctxDb, tvData.Id, ctx.Sender().ID, constants.MovieType)
+	tvShowExists, err := app.Repository.Watchlists.WatchlistExists(ctxDb, tvData.Id, ctx.Sender().ID, constants.TVShowType)
 	if err != nil {
 		return err
 	}
