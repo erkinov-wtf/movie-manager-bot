@@ -26,18 +26,13 @@ type Database struct {
 }
 
 type Endpoints struct {
-	LoginUrl        string
-	BaseUrl         string
-	ImageUrl        string
-	SearchMovie     string
-	SearchTv        string
-	GetMovie        string
-	GetTv           string
-	Groups          string
-	GroupData       string
-	Discounts       string
-	BranchFromGroup string
-	AllStudents     string
+	LoginUrl    string
+	BaseUrl     string
+	ImageUrl    string
+	SearchMovie string
+	SearchTv    string
+	GetMovie    string
+	GetTv       string
 }
 
 func MustLoad() *Config {

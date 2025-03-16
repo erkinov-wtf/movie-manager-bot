@@ -1,9 +1,9 @@
 package cache
 
 import (
-	"github.com/erkinov-wtf/movie-manager-bot/internal/models"
+	"context"
+	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/database/repository"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/encryption"
-	"gorm.io/gorm"
 	"log"
 	"sync"
 	"time"
@@ -19,7 +19,7 @@ type UserCacheItem struct {
 type UserCacheData struct {
 	items     map[int64]UserCacheItem
 	mu        sync.RWMutex
-	db        *gorm.DB
+	db        *repository.Manager
 	encryptor *encryption.KeyEncryptor
 }
 
@@ -34,10 +34,10 @@ type SearchState struct {
 	IsTVShowSearch  bool
 }
 
-func NewUserCache(db *gorm.DB, keyEncryptor *encryption.KeyEncryptor) *UserCacheData {
+func NewUserCache(repos *repository.Manager, keyEncryptor *encryption.KeyEncryptor) *UserCacheData {
 	userCache := UserCacheData{
 		items:     make(map[int64]UserCacheItem),
-		db:        db,
+		db:        repos,
 		encryptor: keyEncryptor,
 	}
 
@@ -91,8 +91,10 @@ func (c *UserCacheData) Fetch(userId int64) (isActive bool, data *UserCacheItem)
 		delete(c.items, userId)
 	}
 
-	var user models.User
-	err := c.db.First(&user, "id = ?", userId).Error
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	user, err := c.db.Users.GetUser(ctx, userId)
 	if err != nil {
 		log.Printf("Failed to fetch user %d from database: %v", userId, err)
 		return false, nil
@@ -181,15 +183,21 @@ func (c *UserCacheData) getTokenDb(userId int64, isTokenWaiting bool) string {
 		return ""
 	}
 
-	var apiTokenDb string
-	if err := c.db.Model(&models.User{}).Where("id = ?", userId).
-		Select("tmdb_api_key").
-		Pluck("tmdb_api_key", &apiTokenDb).Error; err != nil {
-		log.Print(err)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	apiTokenDb, err := c.db.Users.GetUserTMDBKey(ctx, userId)
+	if err != nil {
+		log.Printf("Error getting token for user %d: %v", userId, err)
 		return ""
 	}
 
-	decryptedToken, err := c.encryptor.Decrypt(apiTokenDb)
+	if apiTokenDb == nil {
+		log.Printf("TMDB API key not set for user %d", userId)
+		return ""
+	}
+
+	decryptedToken, err := c.encryptor.Decrypt(*apiTokenDb)
 	if err != nil {
 		log.Printf("error decrypting token: %v", err)
 		return ""

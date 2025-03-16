@@ -5,7 +5,7 @@ type Movie struct {
 	Title            string  `json:"title"`
 	Overview         string  `json:"overview"`
 	ReleaseDate      string  `json:"release_date"`
-	Runtime          int64   `json:"runtime"`
+	Runtime          int32   `json:"runtime"`
 	Status           string  `json:"status"`
 	OriginalLanguage string  `json:"original_language"`
 	Adult            bool    `json:"adult"`

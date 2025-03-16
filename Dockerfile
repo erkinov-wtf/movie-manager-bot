@@ -15,8 +15,10 @@ COPY . .
 RUN go mod download
 
 # Build the binary
-WORKDIR /app
 RUN go build -o main .
+
+# Atlas installation
+RUN curl -sSf https://atlasgo.sh | sh
 
 # Final stage for Go app
 FROM debian:bullseye-slim AS final
@@ -28,10 +30,17 @@ RUN apt-get update && apt-get install -y ca-certificates && update-ca-certificat
 
 # Copy the built binary from the builder stage
 COPY --from=builder /app/main /app/main
+COPY --from=builder /app/atlas.hcl /app/atlas.hcl
+COPY --from=builder /usr/local/bin/atlas /usr/local/bin/atlas
 
+# Copy the migrations directory
+COPY --from=builder /app/migrations /app/migrations
 
-# Make the binary executable
-RUN chmod +x /app/main
-
-# Set the entry point to run the Go binary
-ENTRYPOINT ["/app/main"]
+# Creating a shell script to run migrations and start the app
+RUN echo '#!/bin/sh\n\
+set -e\n\
+/usr/local/bin/atlas migrate hash\n\
+/usr/local/bin/atlas migrate apply --env prod --url "postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?search_path=public&sslmode=disable"\n\
+/app/main' > /app/start.sh
+RUN chmod +x /app/start.sh
+CMD ["/app/start.sh"]

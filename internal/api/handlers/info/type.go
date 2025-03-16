@@ -17,10 +17,10 @@ func NewInfoHandler(app *app.App) interfaces.InfoInterface {
 
 type tvStats struct {
 	amount    int
-	totalTime int64
+	totalTime int32
 }
 
 type movieStats struct {
 	amount    int
-	totalTime int64
+	totalTime int32
 }
