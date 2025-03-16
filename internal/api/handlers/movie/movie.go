@@ -3,11 +3,11 @@ package movie
 import (
 	"context"
 	"fmt"
-	"github.com/erkinov-wtf/movie-manager-bot/internal/models"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/cache"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/database"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/tmdb/movie"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/tmdb/search"
+	"github.com/erkinov-wtf/movie-manager-bot/pkg/constants"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/messages"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/paginators"
 	"gopkg.in/telebot.v3"
@@ -192,7 +192,7 @@ func (h *MovieHandler) handleWatchlist(ctx telebot.Context, data string) error {
 	newWatchlist := database.CreateWatchlistParams{
 		UserID:    ctx.Sender().ID,
 		ShowApiID: movieData.ID,
-		Type:      string(models.MovieType),
+		Type:      constants.MovieType,
 		Title:     movieData.Title,
 		Image:     &movieData.PosterPath,
 	}

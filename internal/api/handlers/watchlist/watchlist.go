@@ -3,9 +3,9 @@ package watchlist
 import (
 	"context"
 	"fmt"
-	"github.com/erkinov-wtf/movie-manager-bot/internal/models"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/tmdb/movie"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/tmdb/tv"
+	"github.com/erkinov-wtf/movie-manager-bot/pkg/constants"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/messages"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/paginators"
 	"gopkg.in/telebot.v3"
@@ -50,7 +50,7 @@ func (h *WatchlistHandler) handleTVWatchlist(ctx telebot.Context, msgId string) 
 	ctxDb, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	watchlists, err := h.app.Repository.Watchlists.GetUserWatchlistsWithType(ctxDb, ctx.Sender().ID, string(models.TVShowType))
+	watchlists, err := h.app.Repository.Watchlists.GetUserWatchlistsWithType(ctxDb, ctx.Sender().ID, constants.TVShowType)
 	if err != nil {
 		log.Print(err)
 		return ctx.Send(messages.InternalError)
@@ -71,7 +71,7 @@ func (h *WatchlistHandler) handleTVWatchlist(ctx telebot.Context, msgId string) 
 	totalPages := (totalItems + itemsPerPage - 1) / itemsPerPage
 
 	paginatedWatchlist := paginators.PaginateWatchlistWithType(watchlists, currentPage)
-	response, btn := paginators.GenerateWatchlistWithTypeResponse(&paginatedWatchlist, currentPage, totalPages, totalItems, string(models.TVShowType))
+	response, btn := paginators.GenerateWatchlistWithTypeResponse(&paginatedWatchlist, currentPage, totalPages, totalItems, constants.TVShowType)
 
 	_, err = ctx.Bot().Edit(msg, response, btn, telebot.ModeMarkdown)
 	if err != nil {
@@ -89,7 +89,7 @@ func (h *WatchlistHandler) handleMovieWatchlist(ctx telebot.Context, msgId strin
 	ctxDb, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	watchlists, err := h.app.Repository.Watchlists.GetUserWatchlistsWithType(ctxDb, ctx.Sender().ID, string(models.MovieType))
+	watchlists, err := h.app.Repository.Watchlists.GetUserWatchlistsWithType(ctxDb, ctx.Sender().ID, constants.MovieType)
 	if err != nil {
 		log.Print(err)
 		return ctx.Send(messages.InternalError)
@@ -110,7 +110,7 @@ func (h *WatchlistHandler) handleMovieWatchlist(ctx telebot.Context, msgId strin
 	totalPages := (totalItems + itemsPerPage - 1) / itemsPerPage
 
 	paginatedWatchlist := paginators.PaginateWatchlistWithType(watchlists, currentPage)
-	response, btn := paginators.GenerateWatchlistWithTypeResponse(&paginatedWatchlist, currentPage, totalPages, totalItems, string(models.MovieType))
+	response, btn := paginators.GenerateWatchlistWithTypeResponse(&paginatedWatchlist, currentPage, totalPages, totalItems, constants.MovieType)
 
 	_, err = ctx.Bot().Edit(msg, response, btn, telebot.ModeMarkdown)
 	if err != nil {
@@ -149,7 +149,7 @@ func (h *WatchlistHandler) handleFullWatchlist(ctx telebot.Context, msgId string
 	totalPages := (totalItems + itemsPerPage - 1) / itemsPerPage
 
 	paginatedWatchlist := paginators.PaginateWatchlist(watchlists, currentPage)
-	response, btn := paginators.GenerateWatchlistResponse(&paginatedWatchlist, currentPage, totalPages, totalItems, string(models.AllType))
+	response, btn := paginators.GenerateWatchlistResponse(&paginatedWatchlist, currentPage, totalPages, totalItems, constants.AllType)
 
 	_, err = ctx.Bot().Edit(msg, response, btn, telebot.ModeMarkdown)
 	if err != nil {
@@ -176,7 +176,7 @@ func (h *WatchlistHandler) handleWatchlistInfo(ctx telebot.Context, data string)
 		return ctx.Send(messages.InternalError)
 	}
 
-	if movieType == string(models.MovieType) {
+	if movieType == constants.MovieType {
 		movieData, err := movie.GetMovie(h.app, parsedId, ctx.Sender().ID)
 		if err != nil {
 			log.Print(err)
@@ -225,7 +225,7 @@ func (h *WatchlistHandler) handleBackToPagination(ctx telebot.Context, showType 
 	var response string
 	var btn *telebot.ReplyMarkup
 
-	if showType == string(models.AllType) {
+	if showType == constants.AllType {
 		// Handle all type watchlists
 		watchlists, err := h.app.Repository.Watchlists.GetUserWatchlists(ctxDb, ctx.Sender().ID)
 		if err != nil {
@@ -319,7 +319,7 @@ func (h *WatchlistHandler) WatchlistCallback(ctx telebot.Context) error {
 		var btn *telebot.ReplyMarkup
 
 		// Handle pagination based on watchlist type
-		if watchlistType == string(models.AllType) {
+		if watchlistType == constants.AllType {
 			// Fetch all watchlists using repository
 			watchlists, err := h.app.Repository.Watchlists.GetUserWatchlists(ctxDb, ctx.Sender().ID)
 			if err != nil {

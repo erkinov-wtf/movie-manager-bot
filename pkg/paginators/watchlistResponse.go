@@ -2,8 +2,8 @@ package paginators
 
 import (
 	"fmt"
-	"github.com/erkinov-wtf/movie-manager-bot/internal/models"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/database"
+	"github.com/erkinov-wtf/movie-manager-bot/pkg/constants"
 	"gopkg.in/telebot.v3"
 )
 
@@ -11,7 +11,7 @@ func GenerateWatchlistResponse(paginatedWatchlists *[]database.GetUserWatchlists
 	var response string
 	for _, w := range *paginatedWatchlists {
 		var typeStr string
-		if w.Type == string(models.TVShowType) {
+		if w.Type == constants.TVShowType {
 			typeStr = "📺 Tv Show"
 		} else {
 			typeStr = "🎥 Movie"
@@ -49,7 +49,7 @@ func GenerateWatchlistWithTypeResponse(paginatedWatchlists *[]database.GetUserWa
 	var response string
 	for _, w := range *paginatedWatchlists {
 		var typeStr string
-		if w.Type == string(models.TVShowType) {
+		if w.Type == constants.TVShowType {
 			typeStr = "📺 Tv Show"
 		} else {
 			typeStr = "🎥 Movie"

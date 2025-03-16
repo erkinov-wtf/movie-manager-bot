@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	appCfg "github.com/erkinov-wtf/movie-manager-bot/internal/config/app"
-	"github.com/erkinov-wtf/movie-manager-bot/internal/models"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/tmdb/image"
+	"github.com/erkinov-wtf/movie-manager-bot/pkg/constants"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/messages"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/utils"
 	"gopkg.in/telebot.v3"
@@ -81,7 +81,7 @@ func ShowMovie(app *appCfg.App, ctx telebot.Context, movieData *Movie, isMovie b
 	defer cancel()
 
 	// Check if the movie is already in the user's watchlist
-	movieExists, err := app.Repository.Watchlists.WatchlistExists(ctxDb, movieData.ID, ctx.Sender().ID, string(models.MovieType))
+	movieExists, err := app.Repository.Watchlists.WatchlistExists(ctxDb, movieData.ID, ctx.Sender().ID, constants.MovieType)
 	if err != nil {
 		return err
 	}
@@ -112,7 +112,7 @@ func generateReplyMarkup(movieID int64, isWatchlisted bool, isMovie bool) *teleb
 	if isMovie {
 		backButton = btn.Data("🔙 Back to list", "movie|back_to_pagination|")
 	} else {
-		backButton = btn.Data("🔙 Back to list", fmt.Sprintf("watchlist|back_to_pagination|%s", models.MovieType))
+		backButton = btn.Data("🔙 Back to list", fmt.Sprintf("watchlist|back_to_pagination|%s", constants.MovieType))
 	}
 
 	watchlistButton := btn.Data(

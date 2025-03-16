@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	appCfg "github.com/erkinov-wtf/movie-manager-bot/internal/config/app"
-	"github.com/erkinov-wtf/movie-manager-bot/internal/models"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/tmdb/image"
+	"github.com/erkinov-wtf/movie-manager-bot/pkg/constants"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/messages"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/utils"
 	"gopkg.in/telebot.v3"
@@ -100,7 +100,7 @@ func ShowTV(app *appCfg.App, ctx telebot.Context, tvData *TV, isTVShow bool) err
 	defer cancel()
 
 	// Check if the tv is already in the user's watchlist
-	tvShowExists, err := app.Repository.Watchlists.WatchlistExists(ctxDb, tvData.Id, ctx.Sender().ID, string(models.MovieType))
+	tvShowExists, err := app.Repository.Watchlists.WatchlistExists(ctxDb, tvData.Id, ctx.Sender().ID, constants.MovieType)
 	if err != nil {
 		return err
 	}
@@ -132,7 +132,7 @@ func generateReplyMarkup(TvId int64, isWatchlisted bool, isTVShow bool) *telebot
 	if isTVShow {
 		backButton = btn.Data("🔙 Back to list", "tv|back_to_pagination|")
 	} else {
-		backButton = btn.Data("🔙 Back to list", fmt.Sprintf("watchlist|back_to_pagination|%s", models.TVShowType))
+		backButton = btn.Data("🔙 Back to list", fmt.Sprintf("watchlist|back_to_pagination|%s", constants.TVShowType))
 	}
 	watchlistButton := btn.Data(
 		"🌟 Watchlist", fmt.Sprintf("tv|watchlist|%v", TvId),
