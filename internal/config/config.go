@@ -1,70 +1,91 @@
 package config
 
 import (
+	"github.com/ilyakaznacheev/cleanenv"
 	"log"
 	"os"
 )
 
 type Config struct {
-	General   General
-	Database  Database
-	Endpoints Endpoints
+	AppName     string    `yaml:"app_name"`
+	Env         string    `yaml:"env"`
+	VersionsUrl string    `yaml:"versions_url"`
+	General     General   `yaml:"general"`
+	Database    Database  `yaml:"database"`
+	Endpoints   Endpoints `yaml:"tmdb_endpoints"`
 }
 
 type General struct {
-	BotToken  string
-	SecretKey string
+	BotToken  string `yaml:"bot_token"`
+	SecretKey string `yaml:"secret_key"`
 }
 
 type Database struct {
-	Host     string
-	Port     string
-	Name     string
-	User     string
-	Password string
-	Timezone string
+	Host     string `yaml:"host"`
+	Name     string `yaml:"name"`
+	User     string `yaml:"user"`
+	Password string `yaml:"password"`
+	Port     string `yaml:"port"`
 }
 
 type Endpoints struct {
-	LoginUrl    string
-	BaseUrl     string
-	ImageUrl    string
-	SearchMovie string
-	SearchTv    string
-	GetMovie    string
-	GetTv       string
+	BaseUrl   string `yaml:"base_url"`
+	ImageUrl  string `yaml:"image_url"`
+	LoginUrl  string `yaml:"login_url"`
+	Resources struct {
+		GetMovie string `yaml:"get_movie"`
+		GetTV    string `yaml:"get_tv"`
+		Search   struct {
+			Prefix string `yaml:"prefix"`
+			Movie  string `yaml:"movie"`
+			TV     string `yaml:"tv"`
+		} `yaml:"search"`
+	} `yaml:"resources"`
 }
 
 func MustLoad() *Config {
-	cfg := Config{
-		General: General{
-			BotToken:  getEnv("BOT_TOKEN"),
-			SecretKey: getEnv("SECRET_KEY"),
-		},
-		Database: Database{
-			Host:     getEnv("DB_HOST"),
-			Port:     getEnv("DB_PORT"),
-			Name:     getEnv("DB_NAME"),
-			User:     getEnv("DB_USER"),
-			Password: getEnv("DB_PASSWORD"),
-		},
-		Endpoints: Endpoints{
-			BaseUrl:     getEnv("BASE_URL"),
-			ImageUrl:    getEnv("IMAGE_URL"),
-			LoginUrl:    getEnv("LOGIN_URL"),
-			SearchMovie: getEnv("SEARCH_MOVIE"),
-			GetMovie:    getEnv("GET_MOVIE"),
-			SearchTv:    getEnv("SEARCH_TV"),
-			GetTv:       getEnv("GET_TV"),
-		},
+	var Cfg Config
+
+	const configPath = "./config/config.yml"
+
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		log.Fatalf("config file does not exist: %s", configPath)
 	}
 
-	// Log the loaded configuration for debugging
-	log.Printf("Configuration loaded: %+v", cfg)
+	if err := cleanenv.ReadConfig(configPath, &Cfg); err != nil {
+		log.Fatalf("cannot read config file: %s", err.Error())
+	}
 
-	return &cfg
+	updateCredentials(&Cfg)
+
+	log.Println("Configurations loaded")
+
+	return &Cfg
 }
 
-func getEnv(key string) string {
-	return os.Getenv(key)
+func updateCredentials(cfg *Config) {
+	if env := os.Getenv("ENV"); env != "" {
+		cfg.Env = env
+	}
+	if botToken := os.Getenv("BOT_TOKEN"); botToken != "" {
+		cfg.General.BotToken = botToken
+	}
+	if secretKey := os.Getenv("SECRET_KEY"); secretKey != "" {
+		cfg.General.SecretKey = secretKey
+	}
+	if dbHost := os.Getenv("DB_HOST"); dbHost != "" {
+		cfg.Database.Host = dbHost
+	}
+	if dbName := os.Getenv("DB_NAME"); dbName != "" {
+		cfg.Database.Name = dbName
+	}
+	if dbUser := os.Getenv("DB_USER"); dbUser != "" {
+		cfg.Database.User = dbUser
+	}
+	if dbPass := os.Getenv("DB_PASSWORD"); dbPass != "" {
+		cfg.Database.Password = dbPass
+	}
+	if dbPort := os.Getenv("DB_PORT"); dbPort != "" {
+		cfg.Database.Port = dbPort
+	}
 }

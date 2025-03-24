@@ -15,9 +15,7 @@ type GitHubTag struct {
 	Name string `json:"name"`
 }
 
-func getLatestBotVersion() string {
-	url := "https://api.github.com/repos/erkinov-wtf/movie-manager-bot/tags"
-
+func getLatestBotVersion(url string) string {
 	resp, err := http.Get(url)
 	if err != nil {
 		log.Println("Failed to fetch tags from GitHub:", err)
@@ -58,7 +56,7 @@ func DebugMessage(context telebot.Context, app *app.App) error {
 
 	log.Printf("Debug Info - Timestamp: %v", time.Now())
 
-	botVersion := getLatestBotVersion()
+	botVersion := getLatestBotVersion(app.Cfg.VersionsUrl)
 
 	// Format debug response
 	debugMessage := fmt.Sprintf(

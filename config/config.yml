@@ -1,0 +1,26 @@
+app_name: "movie-manager-bot"
+env: "local" # will be overwritten
+versions_url: "https://api.github.com/repos/erkinov-wtf/movie-manager-bot/tags"
+
+general:
+  bot_token: "some-token-here" # will be overwritten
+  secret_key: "some-key-here" # will be overwritten
+
+database: # will be overwritten
+  host: "localhost"
+  name: "postgres"
+  user: "postgres"
+  password: "postgres"
+  port: 5432
+
+tmdb_endpoints:
+  base_url: "https://api.themoviedb.org/3"
+  image_url: "https://image.tmdb.org/t/p/original"
+  login_url: "https://api.themoviedb.org/3/authentication"
+  resources:
+    get_movie: "/movie"
+    get_tv: "/tv"
+    search:
+      prefix: "/search"
+      movie: "/movie"
+      tv: "/tv"
