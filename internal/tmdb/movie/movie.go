@@ -20,7 +20,7 @@ import (
 
 // GetMovie fetches movie details by Id from the API.
 func GetMovie(app *appCfg.App, movieId int, userId int64) (*Movie, error) {
-	url := utils.MakeUrl(app, fmt.Sprintf("%s/%v", app.Cfg.Endpoints.GetMovie, movieId), nil, userId)
+	url := utils.MakeUrl(app, fmt.Sprintf("%s/%v", app.Cfg.Endpoints.Resources.GetMovie, movieId), nil, userId)
 
 	resp, err := app.TMDBClient.HttpClient.Get(url)
 	if err != nil {

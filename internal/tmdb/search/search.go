@@ -14,7 +14,7 @@ func SearchMovie(app *appCfg.App, movieTitle string, userId int64) (*MovieSearch
 		"query": movieTitle,
 		// new queries should be written here
 	}
-	url := utils.MakeUrl(app, app.Cfg.Endpoints.SearchMovie, params, userId)
+	url := utils.MakeUrl(app, fmt.Sprintf("%v/%v", app.Cfg.Endpoints.Resources.Search.Prefix, app.Cfg.Endpoints.Resources.Search.Movie), params, userId)
 
 	resp, err := app.TMDBClient.HttpClient.Get(url)
 	if err != nil {
@@ -40,7 +40,7 @@ func SearchTV(app *appCfg.App, tvTitle string, userId int64) (*TVSearch, error) 
 	params := map[string]string{
 		"query": tvTitle,
 	}
-	url := utils.MakeUrl(app, app.Cfg.Endpoints.SearchTv, params, userId)
+	url := utils.MakeUrl(app, fmt.Sprintf("%v/%v", app.Cfg.Endpoints.Resources.Search.Prefix, app.Cfg.Endpoints.Resources.Search.TV), params, userId)
 
 	resp, err := app.TMDBClient.HttpClient.Get(url)
 	if err != nil {

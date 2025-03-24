@@ -19,7 +19,7 @@ import (
 )
 
 func GetTV(app *appCfg.App, tvId int, userId int64) (*TV, error) {
-	url := utils.MakeUrl(app, fmt.Sprintf("%s/%v", app.Cfg.Endpoints.GetTv, tvId), nil, userId)
+	url := utils.MakeUrl(app, fmt.Sprintf("%s/%v", app.Cfg.Endpoints.Resources.GetTV, tvId), nil, userId)
 
 	resp, err := app.TMDBClient.HttpClient.Get(url)
 	if err != nil {
@@ -42,7 +42,7 @@ func GetTV(app *appCfg.App, tvId int, userId int64) (*TV, error) {
 }
 
 func GetSeason(app *appCfg.App, tvId, seasonNumber int, userId int64) (*Season, error) {
-	url := utils.MakeUrl(app, fmt.Sprintf("%s/%v/season/%v", app.Cfg.Endpoints.GetTv, tvId, seasonNumber), nil, userId)
+	url := utils.MakeUrl(app, fmt.Sprintf("%s/%v/season/%v", app.Cfg.Endpoints.Resources.GetTV, tvId, seasonNumber), nil, userId)
 
 	resp, err := app.TMDBClient.HttpClient.Get(url)
 	if err != nil {
