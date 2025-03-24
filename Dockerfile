@@ -28,13 +28,11 @@ WORKDIR /app
 # Update CA certificates
 RUN apt-get update && apt-get install -y ca-certificates && update-ca-certificates
 
-# Copy the built binary from the builder stage
 COPY --from=builder /app/main /app/main
 COPY --from=builder /app/atlas.hcl /app/atlas.hcl
-COPY --from=builder /usr/local/bin/atlas /usr/local/bin/atlas
-
-# Copy the migrations directory
 COPY --from=builder /app/migrations /app/migrations
+COPY --from=builder /usr/local/bin/atlas /usr/local/bin/atlas
+COPY --from=builder /app/config /app/config
 
 # Creating a shell script to run migrations and start the app
 RUN echo '#!/bin/sh\n\
