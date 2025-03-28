@@ -18,9 +18,9 @@ tmdb_endpoints:
   image_url: "https://image.tmdb.org/t/p/original"
   login_url: "https://api.themoviedb.org/3/authentication"
   resources:
-    get_movie: "/movie"
-    get_tv: "/tv"
+    get_movie: "movie"
+    get_tv: "tv"
     search:
-      prefix: "/search"
-      movie: "/movie"
-      tv: "/tv"
+      prefix: "search"
+      movie: "movie"
+      tv: "tv"
