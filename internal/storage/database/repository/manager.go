@@ -17,6 +17,7 @@ type Manager struct {
 	Movies     MovieRepositoryInterface
 	TVShows    TVShowRepositoryInterface
 	Watchlists WatchlistRepositoryInterface
+	Worker     WorkerRepositoryInterface
 	rawQueries *database.Queries
 	pool       *pgxpool.Pool
 }
@@ -31,6 +32,7 @@ type ReposTx struct {
 	Movies     MovieRepositoryInterface
 	TVShows    TVShowRepositoryInterface
 	Watchlists WatchlistRepositoryInterface
+	Worker     WorkerRepositoryInterface
 }
 
 // connectSqlcWithPool connects to the database and returns a SQLC Queries instance with the underlying pool
@@ -80,6 +82,7 @@ func connectSqlcWithPool(config *config.Config, ctx context.Context) (*Manager, 
 		Movies:     NewMovieRepository(pool),
 		TVShows:    NewTVShowRepository(pool),
 		Watchlists: NewWatchlistRepository(pool),
+		Worker:     NewWorkerRepository(pool),
 		rawQueries: database.New(pool),
 		pool:       pool,
 	}, nil
@@ -117,6 +120,7 @@ func (m *Manager) BeginTx(ctx context.Context) (*Tx, error) {
 			Movies:     NewMovieRepository(tx),
 			TVShows:    NewTVShowRepository(tx),
 			Watchlists: NewWatchlistRepository(tx),
+			Worker:     NewWorkerRepository(tx),
 		},
 	}, nil
 }

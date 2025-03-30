@@ -8,6 +8,7 @@ package database
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -17,10 +18,10 @@ VALUES ($1, $2, $3, $4)
 `
 
 type CreateMovieParams struct {
-	UserID  int64
-	ApiID   int64
-	Title   string
-	Runtime int32
+	UserID  int64  `json:"user_id"`
+	ApiID   int64  `json:"api_id"`
+	Title   string `json:"title"`
+	Runtime int32  `json:"runtime"`
 }
 
 func (q *Queries) CreateMovie(ctx context.Context, arg CreateMovieParams) error {
@@ -39,13 +40,13 @@ VALUES ($1, $2, $3, $4, $5, $6, $7)
 `
 
 type CreateTVShowParams struct {
-	UserID   int64
-	ApiID    int64
-	Name     string
-	Seasons  int32
-	Episodes int32
-	Runtime  int32
-	Status   string
+	UserID   int64  `json:"user_id"`
+	ApiID    int64  `json:"api_id"`
+	Name     string `json:"name"`
+	Seasons  int32  `json:"seasons"`
+	Episodes int32  `json:"episodes"`
+	Runtime  int32  `json:"runtime"`
+	Status   string `json:"status"`
 }
 
 func (q *Queries) CreateTVShow(ctx context.Context, arg CreateTVShowParams) error {
@@ -67,12 +68,12 @@ VALUES ($1, $2, $3, $4, $5, $6)
 `
 
 type CreateUserParams struct {
-	TgID       int64
-	FirstName  *string
-	LastName   *string
-	Username   *string
-	Language   string
-	TmdbApiKey *string
+	TgID       int64   `json:"tg_id"`
+	FirstName  *string `json:"first_name"`
+	LastName   *string `json:"last_name"`
+	Username   *string `json:"username"`
+	Language   string  `json:"language"`
+	TmdbApiKey *string `json:"tmdb_api_key"`
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
@@ -94,11 +95,11 @@ VALUES ($1, $2, $3, $4, $5)
 `
 
 type CreateWatchlistParams struct {
-	UserID    int64
-	ShowApiID int64
-	Type      string
-	Title     string
-	Image     *string
+	UserID    int64   `json:"user_id"`
+	ShowApiID int64   `json:"show_api_id"`
+	Type      string  `json:"type"`
+	Title     string  `json:"title"`
+	Image     *string `json:"image"`
 }
 
 // Watchlists Table
@@ -113,20 +114,111 @@ func (q *Queries) CreateWatchlist(ctx context.Context, arg CreateWatchlistParams
 	return err
 }
 
+const createWorkerTask = `-- name: CreateWorkerTask :one
+INSERT INTO worker_tasks (worker_id, task_type, status, start_time, end_time, duration_ms,
+                          error, show_id, user_id, shows_checked, updates_found, created_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id
+`
+
+type CreateWorkerTaskParams struct {
+	WorkerID     string             `json:"worker_id"`
+	TaskType     string             `json:"task_type"`
+	Status       string             `json:"status"`
+	StartTime    pgtype.Timestamptz `json:"start_time"`
+	EndTime      pgtype.Timestamptz `json:"end_time"`
+	DurationMs   *int64             `json:"duration_ms"`
+	Error        *string            `json:"error"`
+	ShowID       *int64             `json:"show_id"`
+	UserID       *int64             `json:"user_id"`
+	ShowsChecked *int32             `json:"shows_checked"`
+	UpdatesFound *int32             `json:"updates_found"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) CreateWorkerTask(ctx context.Context, arg CreateWorkerTaskParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, createWorkerTask,
+		arg.WorkerID,
+		arg.TaskType,
+		arg.Status,
+		arg.StartTime,
+		arg.EndTime,
+		arg.DurationMs,
+		arg.Error,
+		arg.ShowID,
+		arg.UserID,
+		arg.ShowsChecked,
+		arg.UpdatesFound,
+		arg.CreatedAt,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const deleteWatchlist = `-- name: DeleteWatchlist :exec
 UPDATE watchlists
 SET deleted_at = NOW()
-WHERE show_api_id = $1 AND user_id = $2 AND deleted_at IS NULL
+WHERE show_api_id = $1
+  AND user_id = $2
+  AND deleted_at IS NULL
 `
 
 type DeleteWatchlistParams struct {
-	ShowApiID int64
-	UserID    int64
+	ShowApiID int64 `json:"show_api_id"`
+	UserID    int64 `json:"user_id"`
 }
 
 func (q *Queries) DeleteWatchlist(ctx context.Context, arg DeleteWatchlistParams) error {
 	_, err := q.db.Exec(ctx, deleteWatchlist, arg.ShowApiID, arg.UserID)
 	return err
+}
+
+const getRecentTasks = `-- name: GetRecentTasks :many
+SELECT id, worker_id, task_type, status, start_time, end_time, duration_ms,
+       error, show_id, user_id, shows_checked, updates_found, created_at
+FROM worker_tasks
+WHERE worker_id = $1
+ORDER BY created_at DESC
+    LIMIT $2
+`
+
+type GetRecentTasksParams struct {
+	WorkerID string `json:"worker_id"`
+	Limit    int32  `json:"limit"`
+}
+
+func (q *Queries) GetRecentTasks(ctx context.Context, arg GetRecentTasksParams) ([]WorkerTask, error) {
+	rows, err := q.db.Query(ctx, getRecentTasks, arg.WorkerID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []WorkerTask
+	for rows.Next() {
+		var i WorkerTask
+		if err := rows.Scan(
+			&i.ID,
+			&i.WorkerID,
+			&i.TaskType,
+			&i.Status,
+			&i.StartTime,
+			&i.EndTime,
+			&i.DurationMs,
+			&i.Error,
+			&i.ShowID,
+			&i.UserID,
+			&i.ShowsChecked,
+			&i.UpdatesFound,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getUser = `-- name: GetUser :one
@@ -158,16 +250,17 @@ const getUserMovies = `-- name: GetUserMovies :many
 
 SELECT id, api_id, title, runtime, created_at, updated_at
 FROM movies
-WHERE user_id = $1 AND deleted_at IS NULL
+WHERE user_id = $1
+  AND deleted_at IS NULL
 `
 
 type GetUserMoviesRow struct {
-	ID        pgtype.UUID
-	ApiID     int64
-	Title     string
-	Runtime   int32
-	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
+	ID        uuid.UUID          `json:"id"`
+	ApiID     int64              `json:"api_id"`
+	Title     string             `json:"title"`
+	Runtime   int32              `json:"runtime"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
 // Movies Table
@@ -199,7 +292,8 @@ func (q *Queries) GetUserMovies(ctx context.Context, userID int64) ([]GetUserMov
 }
 
 const getUserTMDBKey = `-- name: GetUserTMDBKey :one
-SELECT tmdb_api_key FROM users
+SELECT tmdb_api_key
+FROM users
 WHERE tg_id = $1 LIMIT 1
 `
 
@@ -212,21 +306,30 @@ func (q *Queries) GetUserTMDBKey(ctx context.Context, tgID int64) (*string, erro
 
 const getUserTVShows = `-- name: GetUserTVShows :many
 
-SELECT id, api_id, name, seasons, episodes, runtime, status, created_at, updated_at
+SELECT id,
+       api_id,
+       name,
+       seasons,
+       episodes,
+       runtime,
+       status,
+       created_at,
+       updated_at
 FROM tv_shows
-WHERE user_id = $1 AND deleted_at IS NULL
+WHERE user_id = $1
+  AND deleted_at IS NULL
 `
 
 type GetUserTVShowsRow struct {
-	ID        pgtype.UUID
-	ApiID     int64
-	Name      string
-	Seasons   int32
-	Episodes  int32
-	Runtime   int32
-	Status    string
-	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
+	ID        uuid.UUID          `json:"id"`
+	ApiID     int64              `json:"api_id"`
+	Name      string             `json:"name"`
+	Seasons   int32              `json:"seasons"`
+	Episodes  int32              `json:"episodes"`
+	Runtime   int32              `json:"runtime"`
+	Status    string             `json:"status"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
 // TV Shows Table
@@ -261,26 +364,34 @@ func (q *Queries) GetUserTVShows(ctx context.Context, userID int64) ([]GetUserTV
 }
 
 const getUserWatchlist = `-- name: GetUserWatchlist :one
-SELECT id, user_id, show_api_id, type, title, image, created_at, updated_at
+SELECT id,
+       user_id,
+       show_api_id,
+       type,
+       title,
+       image,
+       created_at,
+       updated_at
 FROM watchlists
-WHERE show_api_id = $1 AND user_id = $2 AND deleted_at IS NULL
-    LIMIT 1
+WHERE show_api_id = $1
+  AND user_id = $2
+  AND deleted_at IS NULL LIMIT 1
 `
 
 type GetUserWatchlistParams struct {
-	ShowApiID int64
-	UserID    int64
+	ShowApiID int64 `json:"show_api_id"`
+	UserID    int64 `json:"user_id"`
 }
 
 type GetUserWatchlistRow struct {
-	ID        pgtype.UUID
-	UserID    int64
-	ShowApiID int64
-	Type      string
-	Title     string
-	Image     *string
-	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
+	ID        uuid.UUID          `json:"id"`
+	UserID    int64              `json:"user_id"`
+	ShowApiID int64              `json:"show_api_id"`
+	Type      string             `json:"type"`
+	Title     string             `json:"title"`
+	Image     *string            `json:"image"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
 func (q *Queries) GetUserWatchlist(ctx context.Context, arg GetUserWatchlistParams) (GetUserWatchlistRow, error) {
@@ -302,17 +413,18 @@ func (q *Queries) GetUserWatchlist(ctx context.Context, arg GetUserWatchlistPara
 const getUserWatchlists = `-- name: GetUserWatchlists :many
 SELECT id, show_api_id, type, title, image, created_at, updated_at
 FROM watchlists
-WHERE user_id = $1 AND deleted_at IS NULL
+WHERE user_id = $1
+  AND deleted_at IS NULL
 `
 
 type GetUserWatchlistsRow struct {
-	ID        pgtype.UUID
-	ShowApiID int64
-	Type      string
-	Title     string
-	Image     *string
-	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
+	ID        uuid.UUID          `json:"id"`
+	ShowApiID int64              `json:"show_api_id"`
+	Type      string             `json:"type"`
+	Title     string             `json:"title"`
+	Image     *string            `json:"image"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
 func (q *Queries) GetUserWatchlists(ctx context.Context, userID int64) ([]GetUserWatchlistsRow, error) {
@@ -346,22 +458,24 @@ func (q *Queries) GetUserWatchlists(ctx context.Context, userID int64) ([]GetUse
 const getUserWatchlistsWithType = `-- name: GetUserWatchlistsWithType :many
 SELECT id, show_api_id, type, title, image, created_at, updated_at
 FROM watchlists
-WHERE user_id = $1 AND type = $2 AND deleted_at IS NULL
+WHERE user_id = $1
+  AND type = $2
+  AND deleted_at IS NULL
 `
 
 type GetUserWatchlistsWithTypeParams struct {
-	UserID int64
-	Type   string
+	UserID int64  `json:"user_id"`
+	Type   string `json:"type"`
 }
 
 type GetUserWatchlistsWithTypeRow struct {
-	ID        pgtype.UUID
-	ShowApiID int64
-	Type      string
-	Title     string
-	Image     *string
-	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
+	ID        uuid.UUID          `json:"id"`
+	ShowApiID int64              `json:"show_api_id"`
+	Type      string             `json:"type"`
+	Title     string             `json:"title"`
+	Image     *string            `json:"image"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
 func (q *Queries) GetUserWatchlistsWithType(ctx context.Context, arg GetUserWatchlistsWithTypeParams) ([]GetUserWatchlistsWithTypeRow, error) {
@@ -398,14 +512,14 @@ FROM users
 `
 
 type GetUsersRow struct {
-	ID        pgtype.UUID
-	TgID      int64
-	FirstName *string
-	LastName  *string
-	Username  *string
-	Language  string
-	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
+	ID        uuid.UUID          `json:"id"`
+	TgID      int64              `json:"tg_id"`
+	FirstName *string            `json:"first_name"`
+	LastName  *string            `json:"last_name"`
+	Username  *string            `json:"username"`
+	Language  string             `json:"language"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
 func (q *Queries) GetUsers(ctx context.Context) ([]GetUsersRow, error) {
@@ -438,13 +552,16 @@ func (q *Queries) GetUsers(ctx context.Context) ([]GetUsersRow, error) {
 }
 
 const getWatchedSeasons = `-- name: GetWatchedSeasons :one
-SELECT seasons FROM tv_shows
-WHERE api_id = $1 AND user_id = $2 AND deleted_at IS NULL
+SELECT seasons
+FROM tv_shows
+WHERE api_id = $1
+  AND user_id = $2
+  AND deleted_at IS NULL
 `
 
 type GetWatchedSeasonsParams struct {
-	ApiID  int64
-	UserID int64
+	ApiID  int64 `json:"api_id"`
+	UserID int64 `json:"user_id"`
 }
 
 func (q *Queries) GetWatchedSeasons(ctx context.Context, arg GetWatchedSeasonsParams) (int32, error) {
@@ -454,13 +571,79 @@ func (q *Queries) GetWatchedSeasons(ctx context.Context, arg GetWatchedSeasonsPa
 	return seasons, err
 }
 
+const getWorkerState = `-- name: GetWorkerState :one
+
+SELECT id,
+       worker_id,
+       worker_type,
+       status,
+       last_check_time,
+       next_check_time,
+       error,
+       shows_checked,
+       updates_found,
+       created_at,
+       updated_at
+FROM worker_states
+WHERE worker_id = $1
+ORDER BY updated_at DESC LIMIT 1
+`
+
+// Workers Related
+func (q *Queries) GetWorkerState(ctx context.Context, workerID string) (WorkerState, error) {
+	row := q.db.QueryRow(ctx, getWorkerState, workerID)
+	var i WorkerState
+	err := row.Scan(
+		&i.ID,
+		&i.WorkerID,
+		&i.WorkerType,
+		&i.Status,
+		&i.LastCheckTime,
+		&i.NextCheckTime,
+		&i.Error,
+		&i.ShowsChecked,
+		&i.UpdatesFound,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getWorkerTask = `-- name: GetWorkerTask :one
+SELECT id, worker_id, task_type, status, start_time, end_time, duration_ms,
+       error, show_id, user_id, shows_checked, updates_found, created_at
+FROM worker_tasks
+WHERE id = $1
+`
+
+func (q *Queries) GetWorkerTask(ctx context.Context, id uuid.UUID) (WorkerTask, error) {
+	row := q.db.QueryRow(ctx, getWorkerTask, id)
+	var i WorkerTask
+	err := row.Scan(
+		&i.ID,
+		&i.WorkerID,
+		&i.TaskType,
+		&i.Status,
+		&i.StartTime,
+		&i.EndTime,
+		&i.DurationMs,
+		&i.Error,
+		&i.ShowID,
+		&i.UserID,
+		&i.ShowsChecked,
+		&i.UpdatesFound,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const movieExists = `-- name: MovieExists :one
 SELECT EXISTS(SELECT 1 FROM movies WHERE api_id = $1 AND user_id = $2 AND deleted_at IS NULL)
 `
 
 type MovieExistsParams struct {
-	ApiID  int64
-	UserID int64
+	ApiID  int64 `json:"api_id"`
+	UserID int64 `json:"user_id"`
 }
 
 func (q *Queries) MovieExists(ctx context.Context, arg MovieExistsParams) (bool, error) {
@@ -473,12 +656,14 @@ func (q *Queries) MovieExists(ctx context.Context, arg MovieExistsParams) (bool,
 const softDeleteMovie = `-- name: SoftDeleteMovie :exec
 UPDATE movies
 SET deleted_at = NOW()
-WHERE api_id = $1 AND user_id = $2 AND deleted_at IS NULL
+WHERE api_id = $1
+  AND user_id = $2
+  AND deleted_at IS NULL
 `
 
 type SoftDeleteMovieParams struct {
-	ApiID  int64
-	UserID int64
+	ApiID  int64 `json:"api_id"`
+	UserID int64 `json:"user_id"`
 }
 
 func (q *Queries) SoftDeleteMovie(ctx context.Context, arg SoftDeleteMovieParams) error {
@@ -489,12 +674,14 @@ func (q *Queries) SoftDeleteMovie(ctx context.Context, arg SoftDeleteMovieParams
 const softDeleteTVShow = `-- name: SoftDeleteTVShow :exec
 UPDATE tv_shows
 SET deleted_at = NOW()
-WHERE api_id = $1 AND user_id = $2 AND deleted_at IS NULL
+WHERE api_id = $1
+  AND user_id = $2
+  AND deleted_at IS NULL
 `
 
 type SoftDeleteTVShowParams struct {
-	ApiID  int64
-	UserID int64
+	ApiID  int64 `json:"api_id"`
+	UserID int64 `json:"user_id"`
 }
 
 func (q *Queries) SoftDeleteTVShow(ctx context.Context, arg SoftDeleteTVShowParams) error {
@@ -507,8 +694,8 @@ SELECT EXISTS(SELECT 1 FROM tv_shows WHERE api_id = $1 AND user_id = $2 AND dele
 `
 
 type TVShowExistsParams struct {
-	ApiID  int64
-	UserID int64
+	ApiID  int64 `json:"api_id"`
+	UserID int64 `json:"user_id"`
 }
 
 func (q *Queries) TVShowExists(ctx context.Context, arg TVShowExistsParams) (bool, error) {
@@ -520,15 +707,18 @@ func (q *Queries) TVShowExists(ctx context.Context, arg TVShowExistsParams) (boo
 
 const updateMovie = `-- name: UpdateMovie :exec
 UPDATE movies
-SET runtime = $3, title = $4
-WHERE api_id = $1 AND user_id = $2 AND deleted_at IS NULL
+SET runtime = $3,
+    title   = $4
+WHERE api_id = $1
+  AND user_id = $2
+  AND deleted_at IS NULL
 `
 
 type UpdateMovieParams struct {
-	ApiID   int64
-	UserID  int64
-	Runtime int32
-	Title   string
+	ApiID   int64  `json:"api_id"`
+	UserID  int64  `json:"user_id"`
+	Runtime int32  `json:"runtime"`
+	Title   string `json:"title"`
 }
 
 func (q *Queries) UpdateMovie(ctx context.Context, arg UpdateMovieParams) error {
@@ -543,16 +733,20 @@ func (q *Queries) UpdateMovie(ctx context.Context, arg UpdateMovieParams) error 
 
 const updateTVShow = `-- name: UpdateTVShow :exec
 UPDATE tv_shows
-SET seasons = $3, episodes = $4, runtime = $5
-WHERE api_id = $1 AND user_id = $2 AND deleted_at IS NULL
+SET seasons  = $3,
+    episodes = $4,
+    runtime  = $5
+WHERE api_id = $1
+  AND user_id = $2
+  AND deleted_at IS NULL
 `
 
 type UpdateTVShowParams struct {
-	ApiID    int64
-	UserID   int64
-	Seasons  int32
-	Episodes int32
-	Runtime  int32
+	ApiID    int64 `json:"api_id"`
+	UserID   int64 `json:"user_id"`
+	Seasons  int32 `json:"seasons"`
+	Episodes int32 `json:"episodes"`
+	Runtime  int32 `json:"runtime"`
 }
 
 func (q *Queries) UpdateTVShow(ctx context.Context, arg UpdateTVShowParams) error {
@@ -573,13 +767,92 @@ WHERE tg_id = $1
 `
 
 type UpdateUserTMDBKeyParams struct {
-	TgID       int64
-	TmdbApiKey *string
+	TgID       int64   `json:"tg_id"`
+	TmdbApiKey *string `json:"tmdb_api_key"`
 }
 
 func (q *Queries) UpdateUserTMDBKey(ctx context.Context, arg UpdateUserTMDBKeyParams) error {
 	_, err := q.db.Exec(ctx, updateUserTMDBKey, arg.TgID, arg.TmdbApiKey)
 	return err
+}
+
+const updateWorkerTask = `-- name: UpdateWorkerTask :exec
+UPDATE worker_tasks
+SET status        = $2,
+    end_time      = $3,
+    duration_ms   = $4,
+    error         = $5,
+    shows_checked = $6,
+    updates_found = $7
+WHERE id = $1
+`
+
+type UpdateWorkerTaskParams struct {
+	ID           uuid.UUID          `json:"id"`
+	Status       string             `json:"status"`
+	EndTime      pgtype.Timestamptz `json:"end_time"`
+	DurationMs   *int64             `json:"duration_ms"`
+	Error        *string            `json:"error"`
+	ShowsChecked int32              `json:"shows_checked"`
+	UpdatesFound int32              `json:"updates_found"`
+}
+
+func (q *Queries) UpdateWorkerTask(ctx context.Context, arg UpdateWorkerTaskParams) error {
+	_, err := q.db.Exec(ctx, updateWorkerTask,
+		arg.ID,
+		arg.Status,
+		arg.EndTime,
+		arg.DurationMs,
+		arg.Error,
+		arg.ShowsChecked,
+		arg.UpdatesFound,
+	)
+	return err
+}
+
+const upsertWorkerState = `-- name: UpsertWorkerState :one
+INSERT INTO worker_states (worker_id, worker_type, status, last_check_time, next_check_time,
+                           error, shows_checked, updates_found, created_at, updated_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) ON CONFLICT (worker_id) DO
+UPDATE SET
+    status = EXCLUDED.status,last_check_time = EXCLUDED.last_check_time,
+    next_check_time = EXCLUDED.next_check_time,
+    error = EXCLUDED.error,
+    shows_checked = EXCLUDED.shows_checked,
+    updates_found = EXCLUDED.updates_found,
+    updated_at = EXCLUDED.updated_at
+    RETURNING id
+`
+
+type UpsertWorkerStateParams struct {
+	WorkerID      string             `json:"worker_id"`
+	WorkerType    string             `json:"worker_type"`
+	Status        string             `json:"status"`
+	LastCheckTime pgtype.Timestamptz `json:"last_check_time"`
+	NextCheckTime pgtype.Timestamptz `json:"next_check_time"`
+	Error         *string            `json:"error"`
+	ShowsChecked  int32              `json:"shows_checked"`
+	UpdatesFound  int32              `json:"updates_found"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) UpsertWorkerState(ctx context.Context, arg UpsertWorkerStateParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, upsertWorkerState,
+		arg.WorkerID,
+		arg.WorkerType,
+		arg.Status,
+		arg.LastCheckTime,
+		arg.NextCheckTime,
+		arg.Error,
+		arg.ShowsChecked,
+		arg.UpdatesFound,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
 }
 
 const userExists = `-- name: UserExists :one
@@ -598,9 +871,9 @@ SELECT EXISTS(SELECT 1 FROM watchlists WHERE show_api_id = $1 AND user_id = $2 A
 `
 
 type WatchlistExistsParams struct {
-	ShowApiID int64
-	UserID    int64
-	Type      string
+	ShowApiID int64  `json:"show_api_id"`
+	UserID    int64  `json:"user_id"`
+	Type      string `json:"type"`
 }
 
 func (q *Queries) WatchlistExists(ctx context.Context, arg WatchlistExistsParams) (bool, error) {

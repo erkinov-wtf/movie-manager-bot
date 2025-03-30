@@ -5,58 +5,105 @@
 package database
 
 import (
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // Stores movie information tracked by users
 type Movie struct {
-	ID        pgtype.UUID
-	UserID    int64
-	ApiID     int64
-	Title     string
-	Runtime   int32
-	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
-	DeletedAt pgtype.Timestamptz
+	ID        uuid.UUID          `json:"id"`
+	UserID    int64              `json:"user_id"`
+	ApiID     int64              `json:"api_id"`
+	Title     string             `json:"title"`
+	Runtime   int32              `json:"runtime"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt pgtype.Timestamptz `json:"deleted_at"`
 }
 
 // Stores TV show information tracked by users
 type TvShow struct {
-	ID        pgtype.UUID
-	UserID    int64
-	ApiID     int64
-	Name      string
-	Seasons   int32
-	Episodes  int32
-	Runtime   int32
-	Status    string
-	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
-	DeletedAt pgtype.Timestamptz
+	ID        uuid.UUID          `json:"id"`
+	UserID    int64              `json:"user_id"`
+	ApiID     int64              `json:"api_id"`
+	Name      string             `json:"name"`
+	Seasons   int32              `json:"seasons"`
+	Episodes  int32              `json:"episodes"`
+	Runtime   int32              `json:"runtime"`
+	Status    string             `json:"status"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt pgtype.Timestamptz `json:"deleted_at"`
 }
 
 // Stores user information for authentication and preferences
 type User struct {
-	ID         pgtype.UUID
-	TgID       int64
-	FirstName  *string
-	LastName   *string
-	Username   *string
-	Language   string
-	TmdbApiKey *string
-	CreatedAt  pgtype.Timestamptz
-	UpdatedAt  pgtype.Timestamptz
+	ID         uuid.UUID          `json:"id"`
+	TgID       int64              `json:"tg_id"`
+	FirstName  *string            `json:"first_name"`
+	LastName   *string            `json:"last_name"`
+	Username   *string            `json:"username"`
+	Language   string             `json:"language"`
+	TmdbApiKey *string            `json:"tmdb_api_key"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
 }
 
 // Stores shows and movies users want to watch
 type Watchlist struct {
-	ID        pgtype.UUID
-	UserID    int64
-	ShowApiID int64
-	Type      string
-	Title     string
-	Image     *string
-	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
-	DeletedAt pgtype.Timestamptz
+	ID        uuid.UUID          `json:"id"`
+	UserID    int64              `json:"user_id"`
+	ShowApiID int64              `json:"show_api_id"`
+	Type      string             `json:"type"`
+	Title     string             `json:"title"`
+	Image     *string            `json:"image"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type WorkerPerformance struct {
+	WorkerID          string             `json:"worker_id"`
+	WorkerType        string             `json:"worker_type"`
+	Status            string             `json:"status"`
+	LastCheckTime     pgtype.Timestamptz `json:"last_check_time"`
+	NextCheckTime     pgtype.Timestamptz `json:"next_check_time"`
+	ShowsChecked      int32              `json:"shows_checked"`
+	UpdatesFound      int32              `json:"updates_found"`
+	Error             *string            `json:"error"`
+	TotalTasks        int64              `json:"total_tasks"`
+	AvgTaskDurationMs float64            `json:"avg_task_duration_ms"`
+	MaxTaskDurationMs interface{}        `json:"max_task_duration_ms"`
+	ErrorTasks        int64              `json:"error_tasks"`
+	LastTaskTime      interface{}        `json:"last_task_time"`
+}
+
+type WorkerState struct {
+	ID            uuid.UUID          `json:"id"`
+	WorkerID      string             `json:"worker_id"`
+	WorkerType    string             `json:"worker_type"`
+	Status        string             `json:"status"`
+	LastCheckTime pgtype.Timestamptz `json:"last_check_time"`
+	NextCheckTime pgtype.Timestamptz `json:"next_check_time"`
+	Error         *string            `json:"error"`
+	ShowsChecked  int32              `json:"shows_checked"`
+	UpdatesFound  int32              `json:"updates_found"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+}
+
+type WorkerTask struct {
+	ID           uuid.UUID          `json:"id"`
+	WorkerID     string             `json:"worker_id"`
+	TaskType     string             `json:"task_type"`
+	Status       string             `json:"status"`
+	StartTime    pgtype.Timestamptz `json:"start_time"`
+	EndTime      pgtype.Timestamptz `json:"end_time"`
+	DurationMs   *int64             `json:"duration_ms"`
+	Error        *string            `json:"error"`
+	ShowID       *int64             `json:"show_id"`
+	UserID       *int64             `json:"user_id"`
+	ShowsChecked *int32             `json:"shows_checked"`
+	UpdatesFound *int32             `json:"updates_found"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 }

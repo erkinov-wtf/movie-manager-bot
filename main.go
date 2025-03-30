@@ -57,7 +57,7 @@ func main() {
 	// Start the checker in a separate goroutine
 	apiClient := workers.NewWorkerApiClient(50)
 	checker := workers.NewTVShowChecker(appCfg, bot, apiClient)
-	go checker.StartChecking(ctx, 336*time.Hour)
+	go checker.StartChecking(ctx, 7*24*time.Hour)
 
 	log.Print("bot started")
 	bot.Start()
