@@ -50,6 +50,19 @@ WHERE api_id = $1
   AND user_id = $2
   AND deleted_at IS NULL;
 
+-- name: GetUserTVShow :one
+SELECT id,
+       api_id,
+       name,
+       seasons,
+       episodes,
+       runtime,
+       status,
+       created_at,
+       updated_at
+FROM tv_shows
+WHERE api_id = $1 AND user_id = $2 AND deleted_at IS NULL;
+
 -- name: TVShowExists :one
 SELECT EXISTS(SELECT 1 FROM tv_shows WHERE api_id = $1 AND user_id = $2 AND deleted_at IS NULL);
 
@@ -195,15 +208,36 @@ SET status        = $2,
 WHERE id = $1;
 
 -- name: GetRecentTasks :many
-SELECT id, worker_id, task_type, status, start_time, end_time, duration_ms,
-       error, show_id, user_id, shows_checked, updates_found, created_at
+SELECT id,
+       worker_id,
+       task_type,
+       status,
+       start_time,
+       end_time,
+       duration_ms,
+       error,
+       show_id,
+       user_id,
+       shows_checked,
+       updates_found,
+       created_at
 FROM worker_tasks
 WHERE worker_id = $1
-ORDER BY created_at DESC
-    LIMIT $2;
+ORDER BY created_at DESC LIMIT $2;
 
 -- name: GetWorkerTask :one
-SELECT id, worker_id, task_type, status, start_time, end_time, duration_ms,
-       error, show_id, user_id, shows_checked, updates_found, created_at
+SELECT id,
+       worker_id,
+       task_type,
+       status,
+       start_time,
+       end_time,
+       duration_ms,
+       error,
+       show_id,
+       user_id,
+       shows_checked,
+       updates_found,
+       created_at
 FROM worker_tasks
 WHERE id = $1;

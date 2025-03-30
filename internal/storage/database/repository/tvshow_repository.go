@@ -9,6 +9,7 @@ import (
 type TVShowRepositoryInterface interface {
 	GetUserTVShows(ctx context.Context, userID int64) ([]database.GetUserTVShowsRow, error)
 	GetWatchedSeasons(ctx context.Context, apiID int64, userID int64) (int32, error)
+	GetUserTVShow(ctx context.Context, apiID int64, userID int64) (database.GetUserTVShowRow, error)
 	TVShowExists(ctx context.Context, apiID int64, userID int64) (bool, error)
 	CreateTVShow(ctx context.Context, params database.CreateTVShowParams) error
 	UpdateTVShow(ctx context.Context, params database.UpdateTVShowParams) error
@@ -28,6 +29,13 @@ func NewTVShowRepository(db database.DBTX) TVShowRepositoryInterface {
 
 func (r *TVShowRepository) GetUserTVShows(ctx context.Context, userID int64) ([]database.GetUserTVShowsRow, error) {
 	return r.q.GetUserTVShows(ctx, userID)
+}
+
+func (r *TVShowRepository) GetUserTVShow(ctx context.Context, apiID int64, userID int64) (database.GetUserTVShowRow, error) {
+	return r.q.GetUserTVShow(ctx, database.GetUserTVShowParams{
+		ApiID:  apiID,
+		UserID: userID,
+	})
 }
 
 func (r *TVShowRepository) GetWatchedSeasons(ctx context.Context, apiID int64, userID int64) (int32, error) {

@@ -117,7 +117,9 @@ CREATE TABLE IF NOT EXISTS worker_tasks
     user_id       BIGINT,
     shows_checked INTEGER,
     updates_found INTEGER,
-    created_at    TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    created_at    TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT fk_worker_tasks_worker_id FOREIGN KEY (worker_id) REFERENCES worker_states (worker_id) ON DELETE NO ACTION
 );
 
 -- Create indexes

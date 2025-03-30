@@ -168,8 +168,8 @@ func (h *TVHandler) handleSelectSeasons(ctx telebot.Context, tvId string) error 
 }
 
 func (h *TVHandler) handleWatched(ctx telebot.Context, data string) error {
-	// begin transaction
-	ctxDb, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	// Use a more appropriate timeout for the transaction
+	ctxDb, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	tx, err := h.app.Repository.BeginTx(ctxDb)
@@ -180,9 +180,8 @@ func (h *TVHandler) handleWatched(ctx telebot.Context, data string) error {
 	defer tx.Rollback(ctxDb)
 
 	userId := ctx.Sender().ID
-	watchedSeasons, err := h.app.Repository.TVShows.GetWatchedSeasons(ctxDb, selectedTvShow[userId].Id, userId)
-	if err != nil {
-		log.Printf("Error fetching TV show: %v", err)
+	tvShow, ok := selectedTvShow[userId]
+	if !ok {
 		return ctx.Send(messages.InternalError)
 	}
 
@@ -192,69 +191,137 @@ func (h *TVHandler) handleWatched(ctx telebot.Context, data string) error {
 		return ctx.Send(messages.InvalidSeason)
 	}
 
+	watchedSeasons, err := h.app.Repository.TVShows.GetWatchedSeasons(ctxDb, tvShow.Id, userId)
+	if err != nil {
+		log.Printf("Error fetching watched seasons: %v", err)
+		return ctx.Send(messages.InternalError)
+	}
+
 	if int32(seasonNum) <= watchedSeasons {
 		return ctx.Send(messages.WatchedSeason)
 	}
 
-	var episodes, runtime int32
-	for i := 1; i <= seasonNum; i++ {
-		tvSeason, err := tv.GetSeason(h.app, int(selectedTvShow[userId].Id), i, userId)
-		if err != nil {
-			log.Print(err.Error())
-			return ctx.Send(messages.InternalError)
-		}
-
-		for _, episode := range tvSeason.Episodes {
-			episodes++
-			runtime += episode.Runtime
-			log.Printf("TV Show: %v, Season: %v, Episode: %v, Runtime: %v", selectedTvShow[userId].Id, i, episode.EpisodeNumber, episode.Runtime)
-		}
-	}
-
+	// Get existing show data if any seasons were previously watched
+	var existingEpisodes, existingRuntime int32
 	if watchedSeasons > 0 {
-		updateTv := database.UpdateTVShowParams{
-			ApiID:    selectedTvShow[userId].Id,
-			UserID:   userId,
-			Seasons:  int32(seasonNum),
-			Episodes: episodes,
-			Runtime:  runtime,
-		}
-		err = tx.Repos.TVShows.UpdateTVShow(ctxDb, updateTv)
+		existingShow, err := h.app.Repository.TVShows.GetUserTVShow(ctxDb, tvShow.Id, userId)
 		if err != nil {
-			log.Printf("cant update existing tv show data: %v", err.Error())
+			log.Printf("Error fetching existing TV show data: %v", err)
 			return ctx.Send(messages.InternalError)
 		}
+		existingEpisodes = existingShow.Episodes
+		existingRuntime = existingShow.Runtime
+	}
+
+	// Process seasons concurrently
+	type seasonResult struct {
+		Episodes int32
+		Runtime  int32
+		Error    error
+	}
+
+	numSeasonsToProcess := seasonNum - int(watchedSeasons)
+	resultChan := make(chan seasonResult, numSeasonsToProcess)
+
+	// Create a context with a reasonable timeout for all API calls
+	fetchCtx, fetchCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer fetchCancel()
+
+	// Start goroutines for each season
+	for i := int(watchedSeasons) + 1; i <= seasonNum; i++ {
+		go func(seasonIndex int) {
+			var result seasonResult
+
+			tvSeason, err := tv.GetSeason(h.app, int(tvShow.Id), seasonIndex, userId)
+			if err != nil {
+				result.Error = fmt.Errorf("error fetching season %d: %v", seasonIndex, err)
+				resultChan <- result
+				return
+			}
+
+			for _, episode := range tvSeason.Episodes {
+				result.Episodes++
+				result.Runtime += episode.Runtime
+			}
+
+			resultChan <- result
+		}(i)
+	}
+
+	// Collect results
+	var newEpisodes, newRuntime int32
+	for i := 0; i < numSeasonsToProcess; i++ {
+		select {
+		case result := <-resultChan:
+			if result.Error != nil {
+				log.Print(result.Error)
+				return ctx.Send(messages.InternalError)
+			}
+			newEpisodes += result.Episodes
+			newRuntime += result.Runtime
+		case <-fetchCtx.Done():
+			log.Printf("Timed out while fetching seasons")
+			return ctx.Send(messages.InternalError)
+		}
+	}
+
+	// Total episodes and runtime (existing + new)
+	totalEpisodes := existingEpisodes + newEpisodes
+	totalRuntime := existingRuntime + newRuntime
+
+	// Use a single database operation - update or create
+	var dbErr error
+	if watchedSeasons > 0 {
+		dbErr = tx.Repos.TVShows.UpdateTVShow(ctxDb, database.UpdateTVShowParams{
+			ApiID:    tvShow.Id,
+			UserID:   userId,
+			Seasons:  int32(seasonNum),
+			Episodes: totalEpisodes,
+			Runtime:  totalRuntime,
+		})
 	} else {
-		newTv := database.CreateTVShowParams{
+		dbErr = tx.Repos.TVShows.CreateTVShow(ctxDb, database.CreateTVShowParams{
 			UserID:   userId,
-			ApiID:    selectedTvShow[userId].Id,
-			Name:     selectedTvShow[userId].Name,
+			ApiID:    tvShow.Id,
+			Name:     tvShow.Name,
 			Seasons:  int32(seasonNum),
-			Episodes: episodes,
-			Runtime:  runtime,
-			Status:   selectedTvShow[userId].Status,
-		}
-		err = tx.Repos.TVShows.CreateTVShow(ctxDb, newTv)
-		if err != nil {
-			log.Printf("cant create new tv show: %v", err.Error())
-			return ctx.Send(messages.InternalError)
-		}
+			Episodes: newEpisodes,
+			Runtime:  newRuntime,
+			Status:   tvShow.Status,
+		})
 	}
 
-	err = tx.Repos.Watchlists.DeleteWatchlist(ctxDb, selectedTvShow[userId].Id, userId)
-	if err != nil {
-		log.Print(err)
-		return ctx.Send("Something went wrong")
+	if dbErr != nil {
+		log.Printf("Database operation failed: %v", dbErr)
+		return ctx.Send(messages.InternalError)
 	}
 
-	if err = tx.Commit(context.Background()); err != nil {
+	if err = tx.Repos.Watchlists.DeleteWatchlist(ctxDb, tvShow.Id, userId); err != nil {
+		log.Printf("Failed to delete watchlist: %v", err)
+		return ctx.Send(messages.InternalError)
+	}
+
+	if err = tx.Commit(ctxDb); err != nil {
 		log.Printf("Failed to commit transaction: %v", err)
 		return ctx.Send(messages.InternalError)
 	}
 
-	_, err = ctx.Bot().Send(ctx.Chat(), fmt.Sprintf("The TV Show added as watched with below data:\nName: %v\nSeasons: %v\nEpisodes: %v\nRuntime: %v minutes", selectedTvShow[userId].Name, seasonNum, episodes, runtime), telebot.ModeMarkdown)
-	if err != nil {
-		log.Print(err)
+	var episodesCount, runtimeCount int32
+	if watchedSeasons > 0 {
+		episodesCount = totalEpisodes
+		runtimeCount = totalRuntime
+	} else {
+		episodesCount = newEpisodes
+		runtimeCount = newRuntime
+	}
+
+	message := fmt.Sprintf(
+		"The TV Show added as watched with below data:\nName: %v\nSeasons: %v\nEpisodes: %v\nRuntime: %v minutes",
+		tvShow.Name, seasonNum, episodesCount, runtimeCount,
+	)
+
+	if _, err = ctx.Bot().Send(ctx.Chat(), message, telebot.ModeMarkdown); err != nil {
+		log.Printf("Failed to send message: %v", err)
 		return ctx.Send(messages.InternalError)
 	}
 
