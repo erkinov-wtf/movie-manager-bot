@@ -426,14 +426,17 @@ func (c *TVShowChecker) completeWorkerTask(taskID uuid.UUID, err error, showsChe
 		durationMs = now.Sub(task.StartTime.Time).Milliseconds()
 	}
 
+	var v1 int32 = int32(showsChecked)
+	var v2 int32 = int32(updatesFound)
+
 	params := database.UpdateWorkerTaskParams{
 		ID:           taskID,
 		Status:       status,
 		EndTime:      pgtype.Timestamptz{Time: now, Valid: true},
 		DurationMs:   &durationMs,
 		Error:        errorStr,
-		ShowsChecked: int32(showsChecked),
-		UpdatesFound: int32(updatesFound),
+		ShowsChecked: &v1,
+		UpdatesFound: &v2,
 	}
 
 	err = c.app.Repository.Worker.UpdateWorkerTask(ctx, params)

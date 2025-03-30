@@ -174,12 +174,22 @@ func (q *Queries) DeleteWatchlist(ctx context.Context, arg DeleteWatchlistParams
 }
 
 const getRecentTasks = `-- name: GetRecentTasks :many
-SELECT id, worker_id, task_type, status, start_time, end_time, duration_ms,
-       error, show_id, user_id, shows_checked, updates_found, created_at
+SELECT id,
+       worker_id,
+       task_type,
+       status,
+       start_time,
+       end_time,
+       duration_ms,
+       error,
+       show_id,
+       user_id,
+       shows_checked,
+       updates_found,
+       created_at
 FROM worker_tasks
 WHERE worker_id = $1
-ORDER BY created_at DESC
-    LIMIT $2
+ORDER BY created_at DESC LIMIT $2
 `
 
 type GetRecentTasksParams struct {
@@ -302,6 +312,54 @@ func (q *Queries) GetUserTMDBKey(ctx context.Context, tgID int64) (*string, erro
 	var tmdb_api_key *string
 	err := row.Scan(&tmdb_api_key)
 	return tmdb_api_key, err
+}
+
+const getUserTVShow = `-- name: GetUserTVShow :one
+SELECT id,
+       api_id,
+       name,
+       seasons,
+       episodes,
+       runtime,
+       status,
+       created_at,
+       updated_at
+FROM tv_shows
+WHERE api_id = $1 AND user_id = $2 AND deleted_at IS NULL
+`
+
+type GetUserTVShowParams struct {
+	ApiID  int64 `json:"api_id"`
+	UserID int64 `json:"user_id"`
+}
+
+type GetUserTVShowRow struct {
+	ID        uuid.UUID          `json:"id"`
+	ApiID     int64              `json:"api_id"`
+	Name      string             `json:"name"`
+	Seasons   int32              `json:"seasons"`
+	Episodes  int32              `json:"episodes"`
+	Runtime   int32              `json:"runtime"`
+	Status    string             `json:"status"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) GetUserTVShow(ctx context.Context, arg GetUserTVShowParams) (GetUserTVShowRow, error) {
+	row := q.db.QueryRow(ctx, getUserTVShow, arg.ApiID, arg.UserID)
+	var i GetUserTVShowRow
+	err := row.Scan(
+		&i.ID,
+		&i.ApiID,
+		&i.Name,
+		&i.Seasons,
+		&i.Episodes,
+		&i.Runtime,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const getUserTVShows = `-- name: GetUserTVShows :many
@@ -610,8 +668,19 @@ func (q *Queries) GetWorkerState(ctx context.Context, workerID string) (WorkerSt
 }
 
 const getWorkerTask = `-- name: GetWorkerTask :one
-SELECT id, worker_id, task_type, status, start_time, end_time, duration_ms,
-       error, show_id, user_id, shows_checked, updates_found, created_at
+SELECT id,
+       worker_id,
+       task_type,
+       status,
+       start_time,
+       end_time,
+       duration_ms,
+       error,
+       show_id,
+       user_id,
+       shows_checked,
+       updates_found,
+       created_at
 FROM worker_tasks
 WHERE id = $1
 `
@@ -793,8 +862,8 @@ type UpdateWorkerTaskParams struct {
 	EndTime      pgtype.Timestamptz `json:"end_time"`
 	DurationMs   *int64             `json:"duration_ms"`
 	Error        *string            `json:"error"`
-	ShowsChecked int32              `json:"shows_checked"`
-	UpdatesFound int32              `json:"updates_found"`
+	ShowsChecked *int32             `json:"shows_checked"`
+	UpdatesFound *int32             `json:"updates_found"`
 }
 
 func (q *Queries) UpdateWorkerTask(ctx context.Context, arg UpdateWorkerTaskParams) error {
