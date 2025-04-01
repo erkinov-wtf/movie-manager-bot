@@ -39,6 +39,7 @@ func parseCtxSender(user *telebot.User) *customUser {
 func buildLogArgs(op string, env string, ctx telebot.Context, args ...interface{}) []interface{} {
 	logArgs := []interface{}{
 		"op", op,
+		"source", "bot",
 	}
 
 	// Only include user info in production environment

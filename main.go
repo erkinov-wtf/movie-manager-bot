@@ -32,6 +32,7 @@ func main() {
 	encryptor := encryption.NewKeyEncryptor(cfg.General.SecretKey)
 	cacheManager := cache.NewCacheManager(repoManager, encryptor)
 	lgr := logger.NewLogger(cfg.Env)
+	defer lgr.Stop()
 
 	appCfg := app.NewApp(cfg, repoManager, tmdbClient, cacheManager, encryptor, lgr)
 
