@@ -3,6 +3,7 @@ package logger
 import (
 	"bytes"
 	"encoding/json"
+	"go.uber.org/zap/zapcore"
 	"net/http"
 	"sync"
 	"time"
@@ -25,6 +26,7 @@ type BetterStackLogger struct {
 	wg         sync.WaitGroup
 	stopChan   chan struct{}
 	httpClient *http.Client
+	logLevel   zapcore.Level // Store the configured log level
 }
 
 // logEntry represents a single log entry to be sent to BetterStack
@@ -36,7 +38,7 @@ type logEntry struct {
 }
 
 // newBetterStackLogger creates a new BetterStackLogger that wraps an existing logger
-func newBetterStackLogger(underlying internalLogger) *BetterStackLogger {
+func newBetterStackLogger(underlying internalLogger, level zapcore.Level) *BetterStackLogger {
 	logger := &BetterStackLogger{
 		underlying: underlying,
 		logChan:    make(chan logEntry, 1000), // Buffer size
@@ -45,6 +47,7 @@ func newBetterStackLogger(underlying internalLogger) *BetterStackLogger {
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
+		logLevel: level,
 	}
 
 	// Start the background worker
@@ -135,13 +138,20 @@ func (b *BetterStackLogger) Stop() {
 	b.wg.Wait()
 }
 
+// shouldLog checks if the given level should be logged based on configuration
+func (b *BetterStackLogger) shouldLog(level zapcore.Level) bool {
+	return level >= b.logLevel
+}
+
 // info logs an info level message
 func (b *BetterStackLogger) info(msg string, args ...interface{}) {
 	// First log locally
 	b.underlying.info(msg, args...)
 
 	// Then queue for async sending
-	b.queueLog("INFO", msg, args...)
+	if b.shouldLog(zapcore.InfoLevel) {
+		b.queueLog("INFO", msg, args...)
+	}
 }
 
 // error logs an error level message
@@ -150,7 +160,9 @@ func (b *BetterStackLogger) error(msg string, args ...interface{}) {
 	b.underlying.error(msg, args...)
 
 	// Then queue for async sending
-	b.queueLog("ERROR", msg, args...)
+	if b.shouldLog(zapcore.ErrorLevel) {
+		b.queueLog("ERROR", msg, args...)
+	}
 }
 
 // debug logs a debug level message
@@ -159,7 +171,9 @@ func (b *BetterStackLogger) debug(msg string, args ...interface{}) {
 	b.underlying.debug(msg, args...)
 
 	// Then queue for async sending
-	b.queueLog("DEBUG", msg, args...)
+	if b.shouldLog(zapcore.DebugLevel) {
+		b.queueLog("DEBUG", msg, args...)
+	}
 }
 
 // warn logs a warning level message
@@ -168,7 +182,9 @@ func (b *BetterStackLogger) warn(msg string, args ...interface{}) {
 	b.underlying.warn(msg, args...)
 
 	// Then queue for async sending
-	b.queueLog("WARN", msg, args...)
+	if b.shouldLog(zapcore.WarnLevel) {
+		b.queueLog("WARN", msg, args...)
+	}
 }
 
 // sync flushes buffered logs

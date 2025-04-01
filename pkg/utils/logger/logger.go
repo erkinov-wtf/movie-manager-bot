@@ -2,6 +2,7 @@ package logger
 
 import (
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/constants"
+	"go.uber.org/zap/zapcore"
 	"gopkg.in/telebot.v3"
 )
 
@@ -14,6 +15,14 @@ type Logger struct {
 
 // NewLogger creates a new Logger instance based on environment
 func NewLogger(env string) *Logger {
+	var logLevel zapcore.Level
+
+	if env == constants.Prod {
+		logLevel = zapcore.InfoLevel
+	} else {
+		logLevel = zapcore.DebugLevel
+	}
+
 	baseLogger := newZapLogger(env)
 
 	logger := &Logger{
@@ -23,7 +32,7 @@ func NewLogger(env string) *Logger {
 
 	// Only enable BetterStack in production
 	if env == constants.Prod {
-		logger.betterStack = newBetterStackLogger(baseLogger)
+		logger.betterStack = newBetterStackLogger(baseLogger, logLevel)
 	}
 
 	return logger
