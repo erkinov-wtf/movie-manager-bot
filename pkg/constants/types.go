@@ -5,3 +5,8 @@ const (
 	TVShowType string = "TV_SHOW"
 	AllType    string = "ALL"
 )
+
+const (
+	LocalEnv = "local"
+	Prod     = "prod"
+)
