@@ -11,17 +11,19 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"gopkg.in/telebot.v3"
-	"log"
 	"sync"
 	"time"
 )
 
 func (c *WorkerApiClient) GetShowDetails(app *app.App, apiId int, userId int64) (*tv.TV, error) {
-	log.Printf("[Worker] Attempting to fetch details for show Id: %d", apiId)
+	const op = "workers.GetShowDetails"
+	app.Logger.WorkerDebug(op, "Attempting to fetch details for show",
+		"show_id", apiId, "user_id", userId)
 
 	err := c.limiter.Wait(context.Background())
 	if err != nil {
-		log.Printf("[Worker] Rate limit wait error for show %d: %v", apiId, err)
+		app.Logger.WorkerError(op, "Rate limit wait error",
+			"show_id", apiId, "error", err.Error())
 		return nil, fmt.Errorf("rate limiter error: %w", err)
 	}
 
@@ -30,16 +32,20 @@ func (c *WorkerApiClient) GetShowDetails(app *app.App, apiId int, userId int64) 
 	duration := time.Since(start)
 
 	if err != nil {
-		log.Printf("[Worker] API request failed for show %d after %v: %v", apiId, duration, err)
+		app.Logger.WorkerError(op, "API request failed",
+			"show_id", apiId, "duration_ms", duration.Milliseconds(), "error", err.Error())
 		return nil, fmt.Errorf("failed to get TV show details: %w", err)
 	}
 
-	log.Printf("[Worker] Successfully fetched show %d (%s) in %v", apiId, tvData.Name, duration)
+	app.Logger.WorkerInfo(op, "Successfully fetched show details",
+		"show_id", apiId, "name", tvData.Name, "duration_ms", duration.Milliseconds())
 	return tvData, nil
 }
 
-func (c *TVShowChecker) StartChecking(ctx context.Context, checkInterval time.Duration) {
-	log.Printf("[Worker] Starting TV show checker with interval: %v", checkInterval)
+func (c *TVShowChecker) StartChecking(ctx context.Context, checkInterval int) {
+	const op = "workers.StartChecking"
+	c.app.Logger.WorkerInfo(op, "Starting TV show checker",
+		"worker_id", c.workerId, "check_interval_hours", checkInterval)
 
 	// Get the current worker state from the database
 	dbCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -47,20 +53,23 @@ func (c *TVShowChecker) StartChecking(ctx context.Context, checkInterval time.Du
 
 	workerState, err := c.app.Repository.Worker.GetWorkerState(dbCtx, c.workerId)
 	if err != nil {
-		log.Printf("[Worker] Failed to get worker state: %v", err)
-		// Initialize if not found - this should generally be handled by NewTVShowChecker
+		c.app.Logger.WorkerError(op, "Failed to get worker state",
+			"worker_id", c.workerId, "error", err.Error())
 	}
+
+	timeDuration := time.Duration(checkInterval) * time.Hour
 
 	var initialDelay time.Duration
 	if workerState.LastCheckTime.Valid {
-		nextCheckTime := workerState.LastCheckTime.Time.Add(checkInterval)
+		nextCheckTime := workerState.LastCheckTime.Time.Add(timeDuration)
 		if time.Now().Before(nextCheckTime) {
 			initialDelay = time.Until(nextCheckTime)
 		}
 	}
 
 	if initialDelay > 0 {
-		log.Printf("[Worker] Waiting %v until next check", initialDelay)
+		c.app.Logger.WorkerInfo(op, "Waiting until next check",
+			"worker_id", c.workerId, "delay_minutes", initialDelay.Minutes())
 		select {
 		case <-ctx.Done():
 			return
@@ -68,18 +77,19 @@ func (c *TVShowChecker) StartChecking(ctx context.Context, checkInterval time.Du
 		}
 	}
 
-	ticker := time.NewTicker(checkInterval)
+	ticker := time.NewTicker(timeDuration)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
-			log.Printf("[Worker] Context cancelled, stopping TV show checker")
+			c.app.Logger.WorkerInfo(op, "Context cancelled, stopping TV show checker",
+				"worker_id", c.workerId)
 			// Update worker status to idle
 			c.updateWorkerStatus(StatusIdle, nil)
 			return
 		case <-ticker.C:
-			log.Printf("[Worker] Starting check cycle")
+			c.app.Logger.WorkerInfo(op, "Starting check cycle", "worker_id", c.workerId)
 			start := time.Now()
 
 			// Update worker status to running
@@ -88,7 +98,8 @@ func (c *TVShowChecker) StartChecking(ctx context.Context, checkInterval time.Du
 			// Create a new task for this check cycle
 			taskID, err := c.createWorkerTask(TaskTypeCheckAllShows, nil, 0)
 			if err != nil {
-				log.Printf("[Worker] Failed to create task record: %v", err)
+				c.app.Logger.WorkerError(op, "Failed to create task record",
+					"worker_id", c.workerId, "error", err.Error())
 			}
 
 			shows, updates := c.checkAllShows()
@@ -99,7 +110,11 @@ func (c *TVShowChecker) StartChecking(ctx context.Context, checkInterval time.Du
 			// Update worker state
 			c.updateWorkerCheck(start, shows, updates)
 
-			log.Printf("[Worker] Completed check cycle in %v", time.Since(start))
+			c.app.Logger.WorkerInfo(op, "Completed check cycle",
+				"worker_id", c.workerId,
+				"duration_ms", time.Since(start).Milliseconds(),
+				"shows_checked", shows,
+				"updates_found", updates)
 		}
 	}
 }
@@ -110,29 +125,30 @@ type ShowRequest struct {
 }
 
 func (c *TVShowChecker) checkAllShows() (int, int) {
+	const op = "workers.checkAllShows"
 	ctxDb, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	users, err := c.app.Repository.Users.GetUsers(ctxDb)
 	if err != nil {
-		log.Printf("[Worker] Error fetching users: %v", err)
+		c.app.Logger.WorkerError(op, "Error fetching users", "error", err.Error())
 		return 0, 0
 	}
-	log.Printf("[Worker] Found %d users to process", len(users))
+	c.app.Logger.WorkerInfo(op, "Found users to process", "user_count", len(users))
 
 	showChan := make(chan ShowRequest, 1000)
 	resultChan := make(chan bool, 1000) // Channel to collect update results
 	var wg sync.WaitGroup
 
 	workerCount := 5
-	log.Printf("[Worker] Starting %d workers", workerCount)
+	c.app.Logger.WorkerInfo(op, "Starting workers", "worker_count", workerCount)
 
 	for i := 0; i < workerCount; i++ {
 		wg.Add(1)
 		go func(workerId int) {
-			log.Printf("[Worker-%d] Started", workerId)
+			c.app.Logger.WorkerDebug(op, "Worker started", "worker_index", workerId)
 			c.showWorker(showChan, &wg, resultChan)
-			log.Printf("[Worker-%d] Finished", workerId)
+			c.app.Logger.WorkerDebug(op, "Worker finished", "worker_index", workerId)
 		}(i)
 	}
 
@@ -140,11 +156,13 @@ func (c *TVShowChecker) checkAllShows() (int, int) {
 	for _, user := range users {
 		shows, err := c.app.Repository.TVShows.GetUserTVShows(ctxDb, user.TgID)
 		if err != nil {
-			log.Printf("[Worker] Error fetching shows for user %d: %v", user.TgID, err)
+			c.app.Logger.WorkerError(op, "Error fetching shows for user",
+				"user_id", user.TgID, "error", err.Error())
 			continue
 		}
 
-		log.Printf("[Worker] Found %d shows for user %d", len(shows), user.TgID)
+		c.app.Logger.WorkerDebug(op, "Found shows for user",
+			"user_id", user.TgID, "show_count", len(shows))
 
 		for _, show := range shows {
 			showCount++
@@ -155,7 +173,7 @@ func (c *TVShowChecker) checkAllShows() (int, int) {
 		}
 	}
 
-	log.Printf("[Worker] Queued %d total shows for processing", showCount)
+	c.app.Logger.WorkerInfo(op, "Queued shows for processing", "total_shows", showCount)
 	close(showChan)
 
 	// Wait for all workers to complete
@@ -170,21 +188,25 @@ func (c *TVShowChecker) checkAllShows() (int, int) {
 		}
 	}
 
-	log.Printf("[Worker] All workers completed. Processed %d shows, found %d updates", showCount, updateCount)
+	c.app.Logger.WorkerInfo(op, "All workers completed",
+		"shows_processed", showCount, "updates_found", updateCount)
 	return showCount, updateCount
 }
 
 func (c *TVShowChecker) showWorker(showChan chan ShowRequest, wg *sync.WaitGroup, resultChan chan bool) {
+	const op = "workers.showWorker"
 	defer wg.Done()
 
 	for req := range showChan {
 		start := time.Now()
-		log.Printf("[Worker] Processing show %d for user %d", req.Show.ApiID, req.User.TgID)
+		c.app.Logger.WorkerDebug(op, "Processing show",
+			"show_id", req.Show.ApiID, "user_id", req.User.TgID)
 
 		// Create a task for this show check
 		taskID, err := c.createWorkerTask(TaskTypeCheckShow, nil, req.Show.ApiID)
 		if err != nil {
-			log.Printf("[Worker] Failed to create task record for show %d: %v", req.Show.ApiID, err)
+			c.app.Logger.WorkerError(op, "Failed to create task record for show",
+				"show_id", req.Show.ApiID, "error", err.Error())
 		}
 
 		updated := c.processShow(req.User, req.Show)
@@ -203,39 +225,49 @@ func (c *TVShowChecker) showWorker(showChan chan ShowRequest, wg *sync.WaitGroup
 
 		c.completeWorkerTask(taskID, nil, processedCount, updatesCount)
 
-		log.Printf("[Worker] Completed processing show %d in %v", req.Show.ApiID, time.Since(start))
+		c.app.Logger.WorkerDebug(op, "Completed processing show",
+			"show_id", req.Show.ApiID,
+			"duration_ms", time.Since(start).Milliseconds(),
+			"updated", updated)
 	}
 }
 
 func (c *TVShowChecker) processShow(user *database.GetUsersRow, show database.GetUserTVShowsRow) bool {
+	const op = "workers.processShow"
 	details, err := c.apiClient.GetShowDetails(c.app, int(show.ApiID), user.TgID)
 	if err != nil {
-		log.Printf("[Worker] Error fetching show details for %d: %v", show.ApiID, err)
+		c.app.Logger.WorkerError(op, "Error fetching show details",
+			"show_id", show.ApiID, "error", err.Error())
 		return false
 	}
 
-	log.Printf("[Worker] Current seasons for show %d: DB=%d, API=%d",
-		show.ApiID, show.Seasons, details.Seasons)
+	c.app.Logger.WorkerDebug(op, "Comparing seasons for show",
+		"show_id", show.ApiID, "db_seasons", show.Seasons, "api_seasons", details.Seasons)
 
 	if details.Seasons > show.Seasons {
-		log.Printf("[Worker] New season detected for show %d (%s): %d -> %d",
-			show.ApiID, details.Name, show.Seasons, details.Seasons)
+		c.app.Logger.WorkerInfo(op, "New season detected for show",
+			"show_id", show.ApiID, "name", details.Name,
+			"old_seasons", show.Seasons, "new_seasons", details.Seasons)
 		c.notifyUser(*user, &show, details)
 		return true
 	} else {
-		log.Printf("[Worker] No new seasons for show %d (%s)", show.ApiID, details.Name)
+		c.app.Logger.WorkerDebug(op, "No new seasons for show",
+			"show_id", show.ApiID, "name", details.Name)
 		return false
 	}
 }
 
 func (c *TVShowChecker) notifyUser(user database.GetUsersRow, watched *database.GetUserTVShowsRow, show *tv.TV) {
-	log.Printf("[Worker] Sending notification to user %d for show %s (Id: %d, Seasons: %d)",
-		user.TgID, show.Name, show.Id, show.Seasons)
+	const op = "workers.notifyUser"
+	c.app.Logger.WorkerInfo(op, "Sending notification to user",
+		"user_id", user.TgID, "show_id", show.Id,
+		"name", show.Name, "seasons", show.Seasons)
 
 	// Retrieve TV poster image
 	imgBuffer, err := image.GetImage(c.app, show.PosterPath)
 	if err != nil {
-		log.Printf("[Worker] Error retrieving image: %v", err)
+		c.app.Logger.WorkerError(op, "Error retrieving image",
+			"poster_path", show.PosterPath, "error", err.Error())
 		return
 	}
 
@@ -266,17 +298,21 @@ func (c *TVShowChecker) notifyUser(user database.GetUsersRow, watched *database.
 		Caption: caption,
 	}
 
+	c.app.Logger.WorkerDebug(op, "Sending notification message", "user_id", user.TgID)
 	_, err = c.bot.Send(&telebot.User{ID: user.TgID}, imageFile, replyMarkup, telebot.ModeMarkdown)
 	if err != nil {
-		log.Printf("[Worker] Failed to send TV details: %v", err)
+		c.app.Logger.WorkerError(op, "Failed to send TV details", "user_id", user.TgID, "error", err.Error())
 		return
 	}
+
+	c.app.Logger.WorkerInfo(op, "Notification sent successfully", "user_id", user.TgID, "show_id", show.Id)
 }
 
 // Database interaction methods
 
 // updateWorkerStatus updates the worker's status in the database
 func (c *TVShowChecker) updateWorkerStatus(status string, err error) {
+	const op = "workers.updateWorkerStatus"
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -315,19 +351,22 @@ func (c *TVShowChecker) updateWorkerStatus(status string, err error) {
 
 	dbErr = c.app.Repository.Worker.UpsertWorkerState(ctx, params)
 	if dbErr != nil {
-		log.Printf("[Worker] Failed to update worker status: %v", dbErr)
+		c.app.Logger.WorkerError(op, "Failed to update worker status",
+			"worker_id", c.workerId, "status", status, "error", dbErr.Error())
 	}
 }
 
 // updateWorkerCheck records a completed check cycle
 func (c *TVShowChecker) updateWorkerCheck(checkTime time.Time, showsChecked, updatesFound int) {
+	const op = "workers.updateWorkerCheck"
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	// Get current state
 	currentState, err := c.app.Repository.Worker.GetWorkerState(ctx, c.workerId)
 	if err != nil {
-		log.Printf("[Worker] Failed to get worker state: %v", err)
+		c.app.Logger.WorkerError(op, "Failed to get worker state",
+			"worker_id", c.workerId, "error", err.Error())
 		return
 	}
 
@@ -348,12 +387,20 @@ func (c *TVShowChecker) updateWorkerCheck(checkTime time.Time, showsChecked, upd
 
 	err = c.app.Repository.Worker.UpsertWorkerState(ctx, params)
 	if err != nil {
-		log.Printf("[Worker] Failed to update worker check info: %v", err)
+		c.app.Logger.WorkerError(op, "Failed to update worker check info",
+			"worker_id", c.workerId, "error", err.Error())
+	} else {
+		c.app.Logger.WorkerDebug(op, "Updated worker check info",
+			"worker_id", c.workerId,
+			"shows_checked", showsChecked,
+			"updates_found", updatesFound,
+			"next_check", nextCheckTime)
 	}
 }
 
 // createWorkerTask creates a new task record in the database
 func (c *TVShowChecker) createWorkerTask(taskType string, userID *int64, showID int64) (uuid.UUID, error) {
+	const op = "workers.createWorkerTask"
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -382,19 +429,26 @@ func (c *TVShowChecker) createWorkerTask(taskType string, userID *int64, showID 
 		CreatedAt: pgtype.Timestamptz{Time: now, Valid: true},
 	}
 
+	c.app.Logger.WorkerDebug(op, "Creating worker task",
+		"worker_id", c.workerId, "task_type", taskType, "show_id", showID)
+
 	taskID, err := c.app.Repository.Worker.CreateWorkerTask(ctx, params)
 	if err != nil {
-		log.Printf("[Worker] Failed to create worker task: %v", err)
+		c.app.Logger.WorkerError(op, "Failed to create worker task",
+			"worker_id", c.workerId, "task_type", taskType, "error", err.Error())
 		return uuid.Nil, err
 	}
 
+	c.app.Logger.WorkerDebug(op, "Worker task created",
+		"task_id", taskID, "worker_id", c.workerId, "task_type", taskType)
 	return taskID, nil
 }
 
 // completeWorkerTask updates a task as completed or failed
 func (c *TVShowChecker) completeWorkerTask(taskID uuid.UUID, err error, showsChecked, updatesFound int) {
+	const op = "workers.completeWorkerTask"
 	if taskID == uuid.Nil {
-		log.Printf("[Worker] Cannot update task with nil UUID")
+		c.app.Logger.WorkerWarning(op, "Cannot update task with nil UUID", "worker_id", c.workerId)
 		return
 	}
 
@@ -416,7 +470,8 @@ func (c *TVShowChecker) completeWorkerTask(taskID uuid.UUID, err error, showsChe
 	// Get the original task to calculate duration
 	task, getErr := c.app.Repository.Worker.GetWorkerTask(ctx, taskID)
 	if getErr != nil {
-		log.Printf("[Worker] Failed to get task for ID %s: %v", taskID, getErr)
+		c.app.Logger.WorkerError(op, "Failed to get task",
+			"task_id", taskID, "worker_id", c.workerId, "error", getErr.Error())
 		return
 	}
 
@@ -441,6 +496,12 @@ func (c *TVShowChecker) completeWorkerTask(taskID uuid.UUID, err error, showsChe
 
 	err = c.app.Repository.Worker.UpdateWorkerTask(ctx, params)
 	if err != nil {
-		log.Printf("[Worker] Failed to update worker task: %v", err)
+		c.app.Logger.WorkerError(op, "Failed to update worker task",
+			"task_id", taskID, "worker_id", c.workerId, "error", err.Error())
+	} else {
+		c.app.Logger.WorkerDebug(op, "Worker task completed",
+			"task_id", taskID, "worker_id", c.workerId,
+			"status", status, "duration_ms", durationMs,
+			"shows_checked", showsChecked, "updates_found", updatesFound)
 	}
 }

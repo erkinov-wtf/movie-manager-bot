@@ -5,6 +5,8 @@ versions_url: "https://api.github.com/repos/erkinov-wtf/movie-manager-bot/tags"
 general:
   bot_token: "some-token-here" # will be overwritten
   secret_key: "some-key-here" # will be overwritten
+  worker_period: 168  # in hours (default 7*24)
+  worker_rate_limit: 50 # requests per second
 
 database: # will be overwritten
   host: "localhost"
@@ -24,3 +26,8 @@ tmdb_endpoints:
       prefix: "/search"
       movie: "/movie"
       tv: "/tv"
+
+
+betterstack:
+  host: "https://betterstackdata.com/" # will be overwritten
+  token: "some-token-here" # will be overwritten

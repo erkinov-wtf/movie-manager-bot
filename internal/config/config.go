@@ -7,17 +7,20 @@ import (
 )
 
 type Config struct {
-	AppName     string    `yaml:"app_name"`
-	Env         string    `yaml:"env"`
-	VersionsUrl string    `yaml:"versions_url"`
-	General     General   `yaml:"general"`
-	Database    Database  `yaml:"database"`
-	Endpoints   Endpoints `yaml:"tmdb_endpoints"`
+	AppName     string      `yaml:"app_name"`
+	Env         string      `yaml:"env"`
+	VersionsUrl string      `yaml:"versions_url"`
+	General     General     `yaml:"general"`
+	Database    Database    `yaml:"database"`
+	Endpoints   Endpoints   `yaml:"tmdb_endpoints"`
+	Betterstack Betterstack `yaml:"betterstack"`
 }
 
 type General struct {
-	BotToken  string `yaml:"bot_token"`
-	SecretKey string `yaml:"secret_key"`
+	BotToken        string `yaml:"bot_token"`
+	SecretKey       string `yaml:"secret_key"`
+	WorkerPeriod    int    `yaml:"worker_period"`
+	WorkerRateLimit int    `yaml:"worker_rate_limit"`
 }
 
 type Database struct {
@@ -41,6 +44,11 @@ type Endpoints struct {
 			TV     string `yaml:"tv"`
 		} `yaml:"search"`
 	} `yaml:"resources"`
+}
+
+type Betterstack struct {
+	Host  string `yaml:"host"`
+	Token string `yaml:"token"`
 }
 
 func MustLoad() *Config {
@@ -87,5 +95,11 @@ func updateCredentials(cfg *Config) {
 	}
 	if dbPort := os.Getenv("DB_PORT"); dbPort != "" {
 		cfg.Database.Port = dbPort
+	}
+	if betterstackHost := os.Getenv("BETTERSTACK_HOST"); betterstackHost != "" {
+		cfg.Betterstack.Host = betterstackHost
+	}
+	if betterstackToken := os.Getenv("BETTERSTACK_TOKEN"); betterstackToken != "" {
+		cfg.Betterstack.Token = betterstackToken
 	}
 }

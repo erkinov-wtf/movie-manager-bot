@@ -11,6 +11,7 @@ import (
 	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/database/repository"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/tmdb"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/encryption"
+	"github.com/erkinov-wtf/movie-manager-bot/pkg/utils/logger"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/workers"
 	"gopkg.in/telebot.v3"
 	"log"
@@ -30,8 +31,10 @@ func main() {
 	repoManager := repository.MustConnectDB(cfg, ctx)
 	encryptor := encryption.NewKeyEncryptor(cfg.General.SecretKey)
 	cacheManager := cache.NewCacheManager(repoManager, encryptor)
+	lgr := logger.NewLogger(cfg.Env, cfg.Betterstack.Host, cfg.Betterstack.Token)
+	defer lgr.Stop()
 
-	appCfg := app.NewApp(cfg, repoManager, tmdbClient, cacheManager, encryptor)
+	appCfg := app.NewApp(cfg, repoManager, tmdbClient, cacheManager, encryptor, lgr)
 
 	settings := telebot.Settings{
 		Token:  cfg.General.BotToken,
@@ -52,13 +55,12 @@ func main() {
 	routes.SetupTVRoutes(bot, resolver, appCfg)
 	routes.SetupInfoRoutes(bot, resolver, appCfg)
 	routes.SetupWatchlistRoutes(bot, resolver, appCfg)
-	log.Print("bot handlers setup")
 
 	// Start the checker in a separate goroutine
-	apiClient := workers.NewWorkerApiClient(50)
+	apiClient := workers.NewWorkerApiClient(appCfg, cfg.General.WorkerRateLimit)
 	checker := workers.NewTVShowChecker(appCfg, bot, apiClient)
-	go checker.StartChecking(ctx, 7*24*time.Hour)
+	go checker.StartChecking(ctx, cfg.General.WorkerPeriod)
 
-	log.Print("bot started")
+	lgr.WorkerInfo("MAIN", "Bot and Worker started")
 	bot.Start()
 }

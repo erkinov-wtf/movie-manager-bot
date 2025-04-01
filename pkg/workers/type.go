@@ -8,7 +8,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"golang.org/x/time/rate"
 	"gopkg.in/telebot.v3"
-	"log"
 	"sync"
 	"time"
 )
@@ -39,30 +38,38 @@ type TVShowChecker struct {
 
 type WorkerApiClient struct {
 	limiter *rate.Limiter
+	app     *app.App // Added app for logging access
 }
 
 type TVShowAPIClient interface {
 	GetShowDetails(app *app.App, apiId int, userId int64) (*tv.TV, error)
 }
 
-func NewWorkerApiClient(requestsPerSecond float64) *WorkerApiClient {
-	log.Printf("[Worker] Initializing API client with rate limit: %.2f req/sec", requestsPerSecond)
+func NewWorkerApiClient(app *app.App, requestsPerSecond int) *WorkerApiClient {
+	const op = "workers.NewWorkerApiClient"
+	app.Logger.WorkerInfo(op, "Initializing API client with rate limit",
+		"requests_per_second", requestsPerSecond)
+
 	return &WorkerApiClient{
-		limiter: rate.NewLimiter(rate.Limit(requestsPerSecond), int(requestsPerSecond)),
+		limiter: rate.NewLimiter(rate.Limit(requestsPerSecond), requestsPerSecond),
+		app:     app,
 	}
 }
 
 func NewTVShowChecker(app *app.App, bot *telebot.Bot, apiClient TVShowAPIClient) *TVShowChecker {
-	log.Printf("[Worker] Initializing TV Show Checker")
+	const op = "workers.NewTVShowChecker"
+	app.Logger.WorkerInfo(op, "Initializing TV Show Checker")
 
 	// Generate a unique worker ID
 	workerId := "tvshow-checker-" + time.Now().Format("20060102-150405")
+	app.Logger.WorkerDebug(op, "Generated worker ID", "worker_id", workerId)
 
 	// Initialize worker state in database
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	// Initialize the worker state in the database
+	app.Logger.WorkerDebug(op, "Initializing worker state in database", "worker_id", workerId)
 	err := app.Repository.Worker.UpsertWorkerState(ctx, database.UpsertWorkerStateParams{
 		WorkerID:      workerId,
 		WorkerType:    WorkerTypeTVShowChecker,
@@ -77,9 +84,11 @@ func NewTVShowChecker(app *app.App, bot *telebot.Bot, apiClient TVShowAPIClient)
 	})
 
 	if err != nil {
-		log.Printf("[Worker] Failed to initialize worker state in database: %v", err)
+		app.Logger.WorkerError(op, "Failed to initialize worker state in database",
+			"worker_id", workerId, "error", err.Error())
 	} else {
-		log.Printf("[Worker] Worker state initialized with ID: %s", workerId)
+		app.Logger.WorkerInfo(op, "Worker state initialized successfully",
+			"worker_id", workerId, "type", WorkerTypeTVShowChecker)
 	}
 
 	return &TVShowChecker{
