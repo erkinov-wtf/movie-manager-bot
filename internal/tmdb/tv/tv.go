@@ -12,17 +12,20 @@ import (
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/utils"
 	"gopkg.in/telebot.v3"
 	"io"
-	"log"
-	"time"
-
 	"net/http"
+	"time"
 )
 
 func GetTV(app *appCfg.App, tvId int, userId int64) (*TV, error) {
+	const op = "tv.GetTV"
+	app.Logger.Debug(op, nil, "Fetching TV show details", "tv_id", tvId, "user_id", userId)
+
 	url := utils.MakeUrl(app, fmt.Sprintf("%s/%v", app.Cfg.Endpoints.Resources.GetTV, tvId), nil, userId)
+	app.Logger.Debug(op, nil, "Making API request", "url", url)
 
 	resp, err := app.TMDBClient.HttpClient.Get(url)
 	if err != nil {
+		app.Logger.Error(op, nil, "Failed to fetch TV show data", "tv_id", tvId, "error", err.Error())
 		return nil, fmt.Errorf("error fetching tv data: %w", err)
 	}
 	defer func(Body io.ReadCloser) {
@@ -30,22 +33,34 @@ func GetTV(app *appCfg.App, tvId int, userId int64) (*TV, error) {
 	}(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
+		app.Logger.Error(op, nil, "Received non-200 response from API",
+			"tv_id", tvId, "status_code", resp.StatusCode)
 		return nil, fmt.Errorf("received non-200 response: %d", resp.StatusCode)
 	}
 
 	var result TV
 	if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		app.Logger.Error(op, nil, "Failed to parse JSON response", "tv_id", tvId, "error", err.Error())
 		return nil, fmt.Errorf("error parsing json response: %w", err)
 	}
 
+	app.Logger.Info(op, nil, "TV show details fetched successfully",
+		"tv_id", tvId, "name", result.Name, "seasons", result.Seasons)
 	return &result, nil
 }
 
 func GetSeason(app *appCfg.App, tvId, seasonNumber int, userId int64) (*Season, error) {
+	const op = "tv.GetSeason"
+	app.Logger.Debug(op, nil, "Fetching TV season details",
+		"tv_id", tvId, "season", seasonNumber, "user_id", userId)
+
 	url := utils.MakeUrl(app, fmt.Sprintf("%s/%v/season/%v", app.Cfg.Endpoints.Resources.GetTV, tvId, seasonNumber), nil, userId)
+	app.Logger.Debug(op, nil, "Making API request", "url", url)
 
 	resp, err := app.TMDBClient.HttpClient.Get(url)
 	if err != nil {
+		app.Logger.Error(op, nil, "Failed to fetch season data",
+			"tv_id", tvId, "season", seasonNumber, "error", err.Error())
 		return nil, fmt.Errorf("error fetching tv data: %w", err)
 	}
 	defer func(Body io.ReadCloser) {
@@ -53,26 +68,38 @@ func GetSeason(app *appCfg.App, tvId, seasonNumber int, userId int64) (*Season, 
 	}(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
+		app.Logger.Error(op, nil, "Received non-200 response from API",
+			"tv_id", tvId, "season", seasonNumber, "status_code", resp.StatusCode)
 		return nil, fmt.Errorf("received non-200 response: %d", resp.StatusCode)
 	}
 
 	var result Season
 	if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		app.Logger.Error(op, nil, "Failed to parse JSON response",
+			"tv_id", tvId, "season", seasonNumber, "error", err.Error())
 		return nil, fmt.Errorf("error parsing json response: %w", err)
 	}
 
+	app.Logger.Info(op, nil, "TV season details fetched successfully",
+		"tv_id", tvId, "season", seasonNumber, "episode_count", len(result.Episodes))
 	return &result, nil
 }
 
 func ShowTV(app *appCfg.App, ctx telebot.Context, tvData *TV, isTVShow bool) error {
+	const op = "tv.ShowTV"
+	app.Logger.Info(op, ctx, "Showing TV show details to user",
+		"tv_id", tvData.Id, "name", tvData.Name)
+
 	// Retrieve TV poster image
+	app.Logger.Debug(op, ctx, "Retrieving TV poster image", "poster_path", tvData.PosterPath)
 	imgBuffer, err := image.GetImage(app, tvData.PosterPath)
 	if err != nil {
-		log.Printf("Error retrieving image: %v", err)
+		app.Logger.Error(op, ctx, "Error retrieving image", "poster_path", tvData.PosterPath, "error", err.Error())
 		return ctx.Send(messages.InternalError)
 	}
 
 	// Prepare TV details caption
+	app.Logger.Debug(op, ctx, "Preparing TV details caption")
 	caption := fmt.Sprintf(
 		"📺 *Name*: %v\n\n"+
 			"📝 *Overview*: %v\n\n"+
@@ -92,7 +119,7 @@ func ShowTV(app *appCfg.App, ctx telebot.Context, tvData *TV, isTVShow bool) err
 
 	// Delete the original ctx message
 	if err = ctx.Delete(); err != nil {
-		log.Printf("Failed to delete original message: %v", err)
+		app.Logger.Error(op, ctx, "Failed to delete original message", "error", err.Error())
 		return ctx.Send(messages.InternalError)
 	}
 
@@ -100,8 +127,11 @@ func ShowTV(app *appCfg.App, ctx telebot.Context, tvData *TV, isTVShow bool) err
 	defer cancel()
 
 	// Check if the tv is already in the user's watchlist
+	app.Logger.Debug(op, ctx, "Checking if TV show is in user's watchlist",
+		"tv_id", tvData.Id, "user_id", ctx.Sender().ID)
 	tvShowExists, err := app.Repository.Watchlists.WatchlistExists(ctxDb, tvData.Id, ctx.Sender().ID, constants.TVShowType)
 	if err != nil {
+		app.Logger.Error(op, ctx, "Failed to check watchlist status", "error", err.Error())
 		return err
 	}
 
@@ -115,11 +145,12 @@ func ShowTV(app *appCfg.App, ctx telebot.Context, tvData *TV, isTVShow bool) err
 
 	_, err = ctx.Bot().Send(ctx.Chat(), imageFile, replyMarkup, telebot.ModeMarkdown)
 	if err != nil {
-		log.Printf("Failed to send TV details: %v", err)
+		app.Logger.Error(op, ctx, "Failed to send TV details", "error", err.Error())
 		return ctx.Send(messages.InternalError)
 	}
 
-	log.Printf("TV details sent successfully for TV Id: %d", tvData.Id)
+	app.Logger.Info(op, ctx, "TV show details sent successfully",
+		"tv_id", tvData.Id, "name", tvData.Name, "is_watchlisted", tvShowExists)
 	return nil
 }
 

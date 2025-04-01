@@ -8,10 +8,14 @@ import (
 
 type Logger struct {
 	internal *slog.Logger
+	env      string
 }
 
-func setupLogger(baseLogger *slog.Logger) *Logger {
-	return &Logger{internal: baseLogger}
+func setupLogger(baseLogger *slog.Logger, env string) *Logger {
+	return &Logger{
+		internal: baseLogger,
+		env:      env,
+	}
 }
 
 func NewLogger(env string) *Logger {
@@ -36,5 +40,5 @@ func NewLogger(env string) *Logger {
 		log = slog.New(handler)
 	}
 
-	return setupLogger(log)
+	return setupLogger(log, env)
 }

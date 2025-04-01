@@ -26,6 +26,5 @@ func MakeUrl(app *appCfg.App, endpoint string, queryParams map[string]string, us
 	base.RawQuery = params.Encode()
 
 	finalUrl := base.String()
-	log.Printf("making request: %s", finalUrl)
 	return finalUrl
 }
