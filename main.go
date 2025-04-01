@@ -54,13 +54,12 @@ func main() {
 	routes.SetupTVRoutes(bot, resolver, appCfg)
 	routes.SetupInfoRoutes(bot, resolver, appCfg)
 	routes.SetupWatchlistRoutes(bot, resolver, appCfg)
-	log.Print("bot handlers setup")
 
 	// Start the checker in a separate goroutine
-	apiClient := workers.NewWorkerApiClient(50)
+	apiClient := workers.NewWorkerApiClient(appCfg, cfg.General.WorkerRateLimit)
 	checker := workers.NewTVShowChecker(appCfg, bot, apiClient)
-	go checker.StartChecking(ctx, 7*24*time.Hour)
+	go checker.StartChecking(ctx, cfg.General.WorkerPeriod)
 
-	log.Print("bot started")
+	lgr.WorkerInfo("MAIN", "Bot and Worker started")
 	bot.Start()
 }

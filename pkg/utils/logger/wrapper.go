@@ -81,3 +81,50 @@ func (l *Logger) Warning(op string, ctx telebot.Context, msg string, args ...int
 	logArgs := l.buildLogArgs(op, ctx, args...)
 	l.internal.Warn(msg, logArgs...)
 }
+
+// Worker-specific logging methods that don't need telebot.Context
+func parseArgs(op string, args ...interface{}) []interface{} {
+	allArgs := []interface{}{"op", op, "source", "worker"}
+
+	if len(args) > 0 {
+		others := make(map[string]interface{})
+
+		for i := 0; i < len(args); i += 2 {
+			if i+1 < len(args) {
+				if key, ok := args[i].(string); ok {
+					others[key] = args[i+1]
+				}
+			}
+		}
+
+		if len(others) > 0 {
+			allArgs = append(allArgs, "others", others)
+		}
+	}
+
+	return allArgs
+}
+
+func (l *Logger) WorkerInfo(op string, msg string, args ...interface{}) {
+	prefixedMsg := "[WORKER] " + msg
+	allArgs := parseArgs(op, args...)
+	l.internal.Info(prefixedMsg, allArgs...)
+}
+
+func (l *Logger) WorkerError(op string, msg string, args ...interface{}) {
+	prefixedMsg := "[WORKER] " + msg
+	allArgs := parseArgs(op, args...)
+	l.internal.Error(prefixedMsg, allArgs...)
+}
+
+func (l *Logger) WorkerDebug(op string, msg string, args ...interface{}) {
+	prefixedMsg := "[WORKER] " + msg
+	allArgs := parseArgs(op, args...)
+	l.internal.Debug(prefixedMsg, allArgs...)
+}
+
+func (l *Logger) WorkerWarning(op string, msg string, args ...interface{}) {
+	prefixedMsg := "[WORKER] " + msg
+	allArgs := parseArgs(op, args...)
+	l.internal.Warn(prefixedMsg, allArgs...)
+}

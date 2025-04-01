@@ -16,8 +16,10 @@ type Config struct {
 }
 
 type General struct {
-	BotToken  string `yaml:"bot_token"`
-	SecretKey string `yaml:"secret_key"`
+	BotToken        string `yaml:"bot_token"`
+	SecretKey       string `yaml:"secret_key"`
+	WorkerPeriod    int    `yaml:"worker_period"`
+	WorkerRateLimit int    `yaml:"worker_rate_limit"`
 }
 
 type Database struct {
