@@ -29,5 +29,5 @@ tmdb_endpoints:
 
 
 betterstack:
-  host: "https://s1259573.eu-nbg-2.betterstackdata.com/"
+  host: "https://betterstackdata.com/" # will be overwritten
   token: "some-token-here" # will be overwritten

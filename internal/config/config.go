@@ -96,6 +96,9 @@ func updateCredentials(cfg *Config) {
 	if dbPort := os.Getenv("DB_PORT"); dbPort != "" {
 		cfg.Database.Port = dbPort
 	}
+	if betterstackHost := os.Getenv("BETTERSTACK_HOST"); betterstackHost != "" {
+		cfg.Betterstack.Host = betterstackHost
+	}
 	if betterstackToken := os.Getenv("BETTERSTACK_TOKEN"); betterstackToken != "" {
 		cfg.Betterstack.Token = betterstackToken
 	}
