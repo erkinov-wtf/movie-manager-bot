@@ -12,10 +12,11 @@ import (
 const (
 	maxBatchSize    = 100
 	flushInterval   = 5 * time.Second
-	betterStackURL  = "https://s1259573.eu-nbg-2.betterstackdata.com/"
-	authToken       = "Bearer xZ3FQHxgVjMz6Cc6jDmDtYRQ"
 	contentTypeJSON = "application/json"
 )
+
+var betterStackURL string
+var authToken string
 
 // BetterStackLogger implements log forwarding to BetterStack
 type BetterStackLogger struct {
@@ -38,7 +39,7 @@ type logEntry struct {
 }
 
 // newBetterStackLogger creates a new BetterStackLogger that wraps an existing logger
-func newBetterStackLogger(underlying internalLogger, level zapcore.Level) *BetterStackLogger {
+func newBetterStackLogger(underlying internalLogger, level zapcore.Level, host, token string) *BetterStackLogger {
 	logger := &BetterStackLogger{
 		underlying: underlying,
 		logChan:    make(chan logEntry, 1000), // Buffer size
@@ -49,6 +50,9 @@ func newBetterStackLogger(underlying internalLogger, level zapcore.Level) *Bette
 		},
 		logLevel: level,
 	}
+
+	betterStackURL = host
+	authToken = token
 
 	// Start the background worker
 	logger.wg.Add(1)

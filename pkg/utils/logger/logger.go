@@ -14,7 +14,7 @@ type Logger struct {
 }
 
 // NewLogger creates a new Logger instance based on environment
-func NewLogger(env string) *Logger {
+func NewLogger(env, host, token string) *Logger {
 	var logLevel zapcore.Level
 
 	if env == constants.Prod {
@@ -32,7 +32,7 @@ func NewLogger(env string) *Logger {
 
 	// Only enable BetterStack in production
 	if env == constants.Prod {
-		logger.betterStack = newBetterStackLogger(baseLogger, logLevel)
+		logger.betterStack = newBetterStackLogger(baseLogger, logLevel, host, token)
 	}
 
 	return logger

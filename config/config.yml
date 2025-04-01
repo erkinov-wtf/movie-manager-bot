@@ -26,3 +26,8 @@ tmdb_endpoints:
       prefix: "/search"
       movie: "/movie"
       tv: "/tv"
+
+
+betterstack:
+  host: "https://s1259573.eu-nbg-2.betterstackdata.com/"
+  token: "some-token-here" # will be overwritten

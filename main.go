@@ -31,7 +31,7 @@ func main() {
 	repoManager := repository.MustConnectDB(cfg, ctx)
 	encryptor := encryption.NewKeyEncryptor(cfg.General.SecretKey)
 	cacheManager := cache.NewCacheManager(repoManager, encryptor)
-	lgr := logger.NewLogger(cfg.Env)
+	lgr := logger.NewLogger(cfg.Env, cfg.Betterstack.Host, cfg.Betterstack.Token)
 	defer lgr.Stop()
 
 	appCfg := app.NewApp(cfg, repoManager, tmdbClient, cacheManager, encryptor, lgr)
