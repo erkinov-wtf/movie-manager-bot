@@ -5,19 +5,18 @@ import (
 	"fmt"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/messages"
 	"gopkg.in/telebot.v3"
-	"log"
-	"time"
-
 	"strconv"
 	"strings"
+	"time"
 )
 
 func (h *InfoHandler) Info(ctx telebot.Context) error {
-	log.Print(messages.InfoCommand)
+	const op = "info.Info"
+	h.app.Logger.Info(op, ctx, "Info command received")
 
 	msg, err := ctx.Bot().Send(ctx.Chat(), messages.Loading)
 	if err != nil {
-		log.Print(err)
+		h.app.Logger.Error(op, ctx, "Failed to send loading message", "error", err.Error())
 		return ctx.Send(messages.InternalError)
 	}
 
@@ -32,25 +31,30 @@ func (h *InfoHandler) Info(ctx telebot.Context) error {
 
 	_, err = ctx.Bot().Edit(msg, messages.InfoFirstMessage, btn)
 	if err != nil {
-		log.Print(err)
+		h.app.Logger.Error(op, ctx, "Failed to edit message with info menu", "error", err.Error())
 		return ctx.Send(messages.InternalError)
 	}
 
+	h.app.Logger.Info(op, ctx, "Info command handled successfully")
 	return nil
 }
 
 func (h *InfoHandler) handleTVDetails(ctx telebot.Context, msgId string) error {
+	const op = "info.handleTVDetails"
+	h.app.Logger.Info(op, ctx, "Processing TV details request", "message_id", msgId)
+
 	ctxDb, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
+	h.app.Logger.Debug(op, ctx, "Retrieving user TV shows from database")
 	watchedShows, err := h.app.Repository.TVShows.GetUserTVShows(ctxDb, ctx.Sender().ID)
 	if err != nil {
-		log.Printf("cant get all tv shows: %v", err.Error())
+		h.app.Logger.Error(op, ctx, "Failed to retrieve user TV shows", "error", err.Error())
 		return ctx.Send(messages.InternalError)
 	}
 
 	info := tvStats{}
-
+	h.app.Logger.Debug(op, ctx, "Calculating TV show statistics")
 	for _, s := range watchedShows {
 		info.amount++
 		info.totalTime += s.Runtime
@@ -76,25 +80,30 @@ func (h *InfoHandler) handleTVDetails(ctx telebot.Context, msgId string) error {
 
 	_, err = ctx.Bot().Edit(msg, text, telebot.ModeMarkdown)
 	if err != nil {
-		log.Print(err)
+		h.app.Logger.Error(op, ctx, "Failed to update message with TV statistics", "error", err.Error())
 		return ctx.Send(messages.InternalError)
 	}
 
+	h.app.Logger.Info(op, ctx, "TV statistics displayed successfully")
 	return nil
 }
 
 func (h *InfoHandler) handleMovieDetails(ctx telebot.Context, msgId string) error {
+	const op = "info.handleMovieDetails"
+	h.app.Logger.Info(op, ctx, "Processing movie details request", "message_id", msgId)
+
 	ctxDb, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
+	h.app.Logger.Debug(op, ctx, "Retrieving user movies from database")
 	watchedMovies, err := h.app.Repository.Movies.GetUserMovies(ctxDb, ctx.Sender().ID)
 	if err != nil {
-		log.Printf("cant get all tv movies: %v", err.Error())
+		h.app.Logger.Error(op, ctx, "Failed to retrieve user movies", "error", err.Error())
 		return ctx.Send(messages.InternalError)
 	}
 
 	info := movieStats{}
-
+	h.app.Logger.Debug(op, ctx, "Calculating movie statistics")
 	for _, s := range watchedMovies {
 		info.amount++
 		info.totalTime += s.Runtime
@@ -118,38 +127,47 @@ func (h *InfoHandler) handleMovieDetails(ctx telebot.Context, msgId string) erro
 		info.totalTime/60,
 	)
 
+	h.app.Logger.Debug(op, ctx, "Updating message with movie statistics",
+		"movies_count", info.amount, "total_minutes", info.totalTime)
 	_, err = ctx.Bot().Edit(msg, text, telebot.ModeMarkdown)
 	if err != nil {
-		log.Print(err)
+		h.app.Logger.Error(op, ctx, "Failed to update message with movie statistics", "error", err.Error())
 		return ctx.Send(messages.InternalError)
 	}
 
+	h.app.Logger.Info(op, ctx, "Movie statistics displayed successfully")
 	return nil
 }
 
 func (h *InfoHandler) handleFullDetails(ctx telebot.Context, data string) error {
+	const op = "info.handleFullDetails"
+	h.app.Logger.Info(op, ctx, "Processing full details request", "message_id", data)
+
 	ctxDb, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
+	h.app.Logger.Debug(op, ctx, "Retrieving user movies from database")
 	watchedMovies, err := h.app.Repository.Movies.GetUserMovies(ctxDb, ctx.Sender().ID)
 	if err != nil {
-		log.Printf("cant get all movies: %v", err.Error())
+		h.app.Logger.Error(op, ctx, "Failed to retrieve user movies", "error", err.Error())
 		return ctx.Send(messages.InternalError)
 	}
 
+	h.app.Logger.Debug(op, ctx, "Retrieving user TV shows from database")
 	watchedShows, err := h.app.Repository.TVShows.GetUserTVShows(ctxDb, ctx.Sender().ID)
 	if err != nil {
-		log.Printf("cant get all tv shows: %v", err.Error())
+		h.app.Logger.Error(op, ctx, "Failed to retrieve user TV shows", "error", err.Error())
 		return ctx.Send(messages.InternalError)
 	}
 
+	h.app.Logger.Debug(op, ctx, "Calculating movie statistics")
 	movieInfo := movieStats{}
 	for _, s := range watchedMovies {
 		movieInfo.amount++
 		movieInfo.totalTime += s.Runtime
 	}
 
-	// TV show stats
+	h.app.Logger.Debug(op, ctx, "Calculating TV show statistics")
 	tvInfo := tvStats{}
 	for _, s := range watchedShows {
 		tvInfo.amount++
@@ -198,31 +216,41 @@ func (h *InfoHandler) handleFullDetails(ctx telebot.Context, data string) error 
 		totalTime/60,
 	)
 
+	h.app.Logger.Debug(op, ctx, "Updating message with full statistics",
+		"movies_count", movieInfo.amount,
+		"tv_count", tvInfo.amount,
+		"total_minutes", totalTime)
 	_, err = ctx.Bot().Edit(msg, text, telebot.ModeMarkdown)
 	if err != nil {
-		log.Print(err)
+		h.app.Logger.Error(op, ctx, "Failed to update message with full statistics", "error", err.Error())
 		return ctx.Send(messages.InternalError)
 	}
 
+	h.app.Logger.Info(op, ctx, "Full statistics displayed successfully")
 	return nil
 }
 
 func (h *InfoHandler) InfoCallback(ctx telebot.Context) error {
+	const op = "info.InfoCallback"
 	callback := ctx.Callback()
 	trimmed := strings.TrimSpace(callback.Data)
+	h.app.Logger.Info(op, ctx, "Processing info callback", "callback_data", trimmed)
 
 	if !strings.HasPrefix(trimmed, "info|") {
+		h.app.Logger.Warning(op, ctx, "Invalid callback prefix", "callback_data", trimmed)
 		return ctx.Send(messages.InternalError)
 	}
 
 	dataParts := strings.Split(trimmed, "|")
 	if len(dataParts) != 3 {
-		log.Printf("Received malformed callback data: %s", callback.Data)
+		h.app.Logger.Warning(op, ctx, "Malformed callback data", "callback_data", callback.Data,
+			"parts_count", len(dataParts))
 		return ctx.Respond(&telebot.CallbackResponse{Text: messages.MalformedData})
 	}
 
 	action := dataParts[1]
 	data := dataParts[2]
+	h.app.Logger.Debug(op, ctx, "Processing callback action", "action", action, "data", data)
 
 	switch action {
 	case "movie_info":
@@ -235,6 +263,7 @@ func (h *InfoHandler) InfoCallback(ctx telebot.Context) error {
 		return h.handleFullDetails(ctx, data)
 
 	default:
+		h.app.Logger.Warning(op, ctx, "Unknown callback action", "action", action)
 		return ctx.Respond(&telebot.CallbackResponse{Text: messages.UnknownAction})
 	}
 }

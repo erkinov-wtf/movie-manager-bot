@@ -11,6 +11,7 @@ import (
 	"github.com/erkinov-wtf/movie-manager-bot/internal/storage/database/repository"
 	"github.com/erkinov-wtf/movie-manager-bot/internal/tmdb"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/encryption"
+	"github.com/erkinov-wtf/movie-manager-bot/pkg/utils/logger"
 	"github.com/erkinov-wtf/movie-manager-bot/pkg/workers"
 	"gopkg.in/telebot.v3"
 	"log"
@@ -30,8 +31,9 @@ func main() {
 	repoManager := repository.MustConnectDB(cfg, ctx)
 	encryptor := encryption.NewKeyEncryptor(cfg.General.SecretKey)
 	cacheManager := cache.NewCacheManager(repoManager, encryptor)
+	lgr := logger.NewLogger(cfg.Env)
 
-	appCfg := app.NewApp(cfg, repoManager, tmdbClient, cacheManager, encryptor)
+	appCfg := app.NewApp(cfg, repoManager, tmdbClient, cacheManager, encryptor, lgr)
 
 	settings := telebot.Settings{
 		Token:  cfg.General.BotToken,
